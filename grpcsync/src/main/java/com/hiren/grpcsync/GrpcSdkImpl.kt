@@ -12,6 +12,7 @@ import com.hiren.grpcsync.grpc_manager.GrpcResult
 import com.hiren.grpcsync.repo.DeviceRepositoryImpl
 import com.hiren.grpcsync.service.OfflineSyncService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 internal class GrpcSdkImpl : GrpcSdk {
 
@@ -58,7 +59,8 @@ internal class GrpcSdkImpl : GrpcSdk {
         payload: MessageEntity
     ): Flow<GrpcResult> {
         checkGrpcManagerStatus()
-        return grpcManager!!.sendMessageWithCallback(payload, ip)
+        //return grpcManager!!.sendMessageWithCallback(payload, ip)
+        return flow {  }
     }
 
     /* ---------------- BROADCAST ---------------- */

@@ -1,12 +1,15 @@
 package com.hiren.offlineaar
 
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +23,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -32,6 +37,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -39,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +53,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.grpc_manager.GrpcResult
 import com.hiren.grpcsync.public_classes.OfflineCommImpl
 import com.hiren.grpcsync.utils.Utils
 import com.hiren.offlineaar.ui.theme.OfflineAarTheme
@@ -163,11 +175,11 @@ class MainActivity : ComponentActivity() {
                         Button(
                             onClick = {
                                 offlineComm.sendMessage(
-                                    ip = "192.168.2.16", payload = MessageEntity(
+                                    ip = "192.168.2.77", payload = MessageEntity(
                                         messageId = 121321231L,
                                         channelId = "deviceEntity.id",
                                         senderId = Utils.getDeviceIpAddress() ?: "",
-                                        receiverId = "0.0.0.0",
+                                        receiverId = "192.168.2.67",
                                         content = "Hello from Offline AAR",
                                         timestamp = 12145122145L,
                                         status = false
@@ -253,7 +265,7 @@ class MainActivity : ComponentActivity() {
             broadcastIntervalMs = 2000L,
             deviceTimeoutMs = 5000L,
             deleteDeviceOnTimeout = false,
-            printLog = true
+            printLog = false
         )
     }
 
@@ -281,13 +293,13 @@ class MainActivity : ComponentActivity() {
         var inputText by remember { mutableStateOf("") }
         val listState = rememberLazyListState()
 
-        /*val messages by viewModel.messages.collectAsState()
+        val messages by viewModel.messages.collectAsState()
 
         LaunchedEffect(messages.size) {
             if (messages.isNotEmpty()) {
                 listState.animateScrollToItem(messages.size - 1)
             }
-        }*/
+        }
 
         Column {
             Row(
@@ -336,9 +348,9 @@ class MainActivity : ComponentActivity() {
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    /*items(messages) { message ->
+                    items(messages) { message ->
                         MessageItem(message)
-                    }*/
+                    }
                 }
 
                 // Input Area
@@ -409,9 +421,34 @@ class MainActivity : ComponentActivity() {
             senderId = Utils.getDeviceIpAddress() ?: "",
             receiverId = deviceEntity.id,
             content = inputText,
-            timestamp = time,
+            timestamp = Calendar.getInstance().timeInMillis,
             status = false
         )
+        viewModel.addMessage(message)
+        offlineComm.sendMessageWithCallback(
+            ip = deviceEntity.id,
+            payload = message
+        ) { result ->
+            val time1 = Calendar.getInstance().timeInMillis
+            val message = MessageEntity(
+                messageId = time1,
+                channelId = Utils.getDeviceIpAddress() ?: "",
+                senderId = deviceEntity.id,
+                receiverId = Utils.getDeviceIpAddress() ?: "",
+                content = when (result) {
+                    is GrpcResult.Success -> {
+                        "Response: true"
+                    }
+
+                    is GrpcResult.Error -> {
+                        "Error: ${result.throwable.localizedMessage}"
+                    }
+                },
+                timestamp = time1,
+                status = false
+            )
+            viewModel.addMessage(message)
+        }
     }
 
     @Composable
@@ -488,6 +525,130 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun MessageItem(message: MessageEntity) {
+        val isUser = message.senderId == Utils.getDeviceIpAddress()
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+        ) {
+            if (!isUser) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE0E0E0)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Bot",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
+            Column(
+                horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
+                modifier = Modifier.widthIn(max = 280.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isUser) 16.dp else 4.dp,
+                        bottomEnd = if (isUser) 4.dp else 16.dp
+                    ),
+                    color = if (isUser) Color(0xFF056C9B) else Color.White,
+                    shadowElevation = 2.dp
+                ) {
+
+                    if (message.content.startsWith("content://") ||
+                        message.content.startsWith("file://") ||
+                        message.content.startsWith("http://") ||
+                        message.content.startsWith("https://")
+                    ) {
+                        /*AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(message.content)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Image",
+                            modifier = Modifier
+                                .sizeIn(maxWidth = 240.dp, maxHeight = 300.dp)
+                                .padding(6.dp),
+                            contentScale = ContentScale.FillWidth
+                        )*/
+
+                    } else if (message.content.startsWith("data:image")) {
+
+                        // Extract Base64
+                        val base64Data = message.content.substringAfter("base64,")
+
+                        // Convert to Bitmap
+                        val bitmap = remember(base64Data) {
+                            try {
+                                val bytes = Base64.decode(base64Data, Base64.DEFAULT)
+                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                null
+                            }
+                        }
+
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Image message",
+                                modifier = Modifier
+                                    .sizeIn(maxWidth = 240.dp, maxHeight = 300.dp)
+                                    .padding(6.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "Invalid Image",
+                                modifier = Modifier.padding(12.dp),
+                                color = Color.Red
+                            )
+                        }
+
+                    } else {
+                        // Normal Text Message
+                        Text(
+                            text = message.content,
+                            modifier = Modifier.padding(12.dp),
+                            color = if (isUser) Color.White else Color(0xFF212121),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+                Text(
+                    text = Utils.formatTimestamp(message.timestamp),
+                    fontSize = 11.sp,
+                    color = Color(0xFF9E9E9E),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+
+            if (isUser) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF056C9B)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "USER",
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

@@ -92,7 +92,14 @@ class OfflineSyncService : LifecycleService() {
 
                     is ServiceEvent.Send -> {
                         Log.d("SyncService", "ServiceEvent.Send")
+                        Log.d("SyncService", "$grpcManager.")
                         grpcManager?.sendMessage(ip = event.ip, message = event.payload)
+                    }
+
+                    is ServiceEvent.SendWithCallback -> {
+                        Log.d("SyncService", "ServiceEvent.Send")
+                        Log.d("SyncService", "$grpcManager.")
+                        grpcManager?.sendMessageWithCallback(ip = event.ip, message = event.payload, callback = event.callback)
                     }
 
                     is ServiceEvent.Broadcast -> {
@@ -142,6 +149,7 @@ class OfflineSyncService : LifecycleService() {
             deleteDeviceOnTimeout = deleteDeviceOnTimeout,
             printLog = printLog
         )
+        grpcManager = GrpcManager()
         grpcManager?.startServer()
 
         lifecycleScope.launch {

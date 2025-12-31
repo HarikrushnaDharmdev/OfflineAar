@@ -80,9 +80,9 @@ class OfflineCommImpl @Inject constructor(
     override fun sendMessageWithCallback(
         ip: String,
         payload: MessageEntity,
-        callbackFlow: Flow<GrpcResult>
+        callback: (GrpcResult) -> Unit
     ) {
-        ServiceBus.post(ServiceEvent.Send(ip, payload))
+        ServiceBus.post(ServiceEvent.SendWithCallback(ip, payload, callback))
     }
 
     override fun broadcast(devices: List<String>, payload: MessageEntity) {

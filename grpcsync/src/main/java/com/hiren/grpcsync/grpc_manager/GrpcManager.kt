@@ -1,5 +1,6 @@
 package com.hiren.grpcsync.grpc_manager
 
+import android.util.Log
 import com.hiren.grpcsync.ChatRequest
 import com.hiren.grpcsync.ChatResponse
 import com.hiren.grpcsync.ChatServiceGrpc
@@ -82,11 +83,12 @@ class GrpcManager {
 
     /* ---------------- CLIENT ---------------- */
 
-    fun sendMessageWithCallback(
+    suspend fun sendMessageWithCallback(
         message: MessageEntity,
         ip: String,
-        port: Int = 50051
-    ): Flow<GrpcResult> = flow {
+        port: Int = 50051,
+        callback: (GrpcResult) -> Unit
+    ){
         val channel = ManagedChannelBuilder
             .forAddress(ip, port)
             .usePlaintext()
@@ -102,10 +104,10 @@ class GrpcManager {
                     .build()
             )
 
-            emit(GrpcResult.Success(ip, response))
+            callback.invoke(GrpcResult.Success(ip, response))
 
         } catch (e: Exception) {
-            emit(GrpcResult.Error(ip, e))
+            callback.invoke(GrpcResult.Error(ip, e))
         } finally {
             channel.shutdown()
         }
@@ -118,13 +120,14 @@ class GrpcManager {
     ) {
         scope.launch {
             try {
+                log("Sending gRPC message to $ip")
                 val channel = ChannelPool.get(ip, port)
 
                 val stub = ChatServiceGrpcKt
                     .ChatServiceCoroutineStub(channel)
                     .withDeadlineAfter(2, TimeUnit.MINUTES)
 
-                val response = stub.getChat(
+                val request = stub.getChat(
                     ChatRequest.newBuilder()
                         .setMessageId(message.messageId)
                         .setChannelId(message.channelId)
@@ -135,8 +138,11 @@ class GrpcManager {
                         .setStatus(message.status)
                         .build()
                 )
-                _events.tryEmit(GrpcEvent.MessageSent(ip, response.received))
+                val response = request.received
+                log("gRPC message sent to $ip, response: $response")
+                _events.tryEmit(GrpcEvent.MessageSent(ip, response))
             } catch (e: Exception) {
+                log("gRPC message sent to $ip, response: ${e.message}")
                 _events.tryEmit(GrpcEvent.Error(ip, e))
                 //autoReconnect(ip, message)
             }
@@ -203,5 +209,11 @@ class GrpcManager {
                 channel.shutdown()
             }
         )
+    }
+
+    private fun log(msg: String) {
+        if (true) {
+            Log.d("UdpBroadcastService", msg)
+        }
     }
 }
