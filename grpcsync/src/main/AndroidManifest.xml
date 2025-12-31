@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Internet -->
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- Allows the app to access information about Wi-Fi networks. -->
+
+    <!--Needed for Foreground service type connectedDevice-->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Allows the app to change the state of Wi-Fi. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" /> <!-- Allows the app to open network sockets and communicate over the internet. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" /> <!-- Allows the app to read from external storage. -->
+
+    <!-- Storage -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" /> <!-- Allows the app to write to external storage. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" /> <!-- Allows the app to start and bind to foreground services. -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+
+    <!-- Foreground service and notification -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.OfflineAar">
+
+        <!--android:process=":DEVICE_SYNC_SERVICE"-->
+        <service
+            android:name=".service.OfflineSyncService"
+            android:enabled="true"
+            android:foregroundServiceType="dataSync|connectedDevice"
+            android:exported="true" />
+
+    </application>
+
+</manifest>

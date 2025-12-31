@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package dataRequest;
+
+option java_package = "com.hiren.grpcsync";
+option java_multiple_files = true;
+
+message ChatRequest {
+  int64 messageId = 1; // TimeStamp
+  string channelId = 2; // Sender_receiver
+  string senderId = 3; // Ip of Sender
+  string receiverId = 4; // Ip of Receiver
+  string content = 5; // Message Content
+  int64 timestamp = 6; // Sent Time
+  bool status = 7; // Message Status "sent"
+}
+
+message ChatResponse {
+  bool received = 1;
+}
+
+service ChatService {
+  rpc getChat(ChatRequest) returns (ChatResponse);
+
+  // 🔥 Bi-directional streaming
+  rpc StreamChat(stream ChatRequest) returns (stream ChatResponse);
+}
+
+service MessagingService {
+  rpc connect(stream ChatRequest) returns (stream ChatResponse);
+}
