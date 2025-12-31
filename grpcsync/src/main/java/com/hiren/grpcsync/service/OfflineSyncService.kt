@@ -42,6 +42,7 @@ class OfflineSyncService : LifecycleService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+
         super.onStartCommand(intent, flags, startId)
 
         startForeground(2, setNotification("Discovering Devices.....", this))
