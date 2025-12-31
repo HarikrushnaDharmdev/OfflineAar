@@ -31,4 +31,7 @@ interface OfflineComm {
     fun broadcast(devices: List<String>, payload: MessageEntity)
 
     fun getDevices(): Flow<List<DeviceEntity>>
+    fun changeUdpPort(port: Int)
+
+    fun changeGrpcPort(port: Int)
 }

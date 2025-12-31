@@ -61,6 +61,7 @@ import com.hiren.offlineaar.ui.theme.OfflineAarTheme
 import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
 import java.util.Calendar
+import kotlin.random.Random
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -187,6 +188,24 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Text("Delete All Devices", color = Color.White)
                         }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Button(
+                            onClick = {
+                                offlineComm.changeUdpPort(35363)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
+                        ) {
+                            Text("Change UDP Port", color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Button(
+                            onClick = {
+                                offlineComm.changeGrpcPort(Random.nextInt(10000, 30000))
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
+                        ) {
+                            Text("Change GRPC Port", color = Color.White)
+                        }
                     }
                     if (isStarted)
                         ListingView(viewModel)
@@ -231,8 +250,8 @@ class MainActivity : ComponentActivity() {
             context = application,
             udpPort = 35353,
             grpcPort = 35354,
-            broadcastIntervalMs = 3000L,
-            deviceTimeoutMs = 10000L,
+            broadcastIntervalMs = 2000L,
+            deviceTimeoutMs = 5000L,
             deleteDeviceOnTimeout = false,
             printLog = true
         )

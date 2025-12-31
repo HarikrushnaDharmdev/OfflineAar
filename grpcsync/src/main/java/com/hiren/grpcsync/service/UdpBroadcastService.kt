@@ -85,7 +85,7 @@ class UdpBroadcastService @Inject constructor(
      * Single lifecycle-aware scope.
      * Cancelling this scope stops everything safely.
      */
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var serviceScope: CoroutineScope? = null
 
     private var broadcastJob: Job? = null
     private var listenJob: Job? = null
@@ -128,30 +128,43 @@ class UdpBroadcastService @Inject constructor(
         this.deleteDeviceOnTimeout = deleteDeviceOnTimeout
         this.printLog = printLog
 
+        serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
         log("UDP service starting")
 
-        broadcastJob = serviceScope.launch { broadcastLoop() }
-        listenJob = serviceScope.launch { listenLoop() }
-        cleanupJob = serviceScope.launch { cleanupLoop() }
+        broadcastJob = serviceScope?.launch { broadcastLoop() }
+        listenJob = serviceScope?.launch { listenLoop() }
+        cleanupJob = serviceScope?.launch { cleanupLoop() }
     }
 
     /**
      * Stops all running jobs and marks all devices as offline.
      * Safely closes UDP sockets.
      */
-    fun stop() {
+    fun stop(needOfflineDevices: Boolean = true) {
         log("UDP service stopping")
 
-        runBlocking {
-            withContext(Dispatchers.IO) {
-                deviceDao.offlineAllDevice()
+        if (needOfflineDevices)
+            runBlocking {
+                withContext(Dispatchers.IO) {
+                    deviceDao.offlineAllDevice()
+                }
             }
-        }
-        serviceScope.cancel()
+
+        broadcastJob?.cancel()
+        broadcastJob = null
+
+        listenJob?.cancel()
+        listenJob = null
+
+        cleanupJob?.cancel()
+        cleanupJob = null
 
         listeningSocket?.close()
         listeningSocket = null
 
+        serviceScope?.cancel()
+        serviceScope = null
     }
 
     /**
@@ -166,7 +179,7 @@ class UdpBroadcastService @Inject constructor(
      * Changes UDP broadcast/listening port at runtime.
      * Restarts broadcast and listening jobs with new port.
      */
-    suspend fun changeUdpPort(newPort: Int) {
+    fun changeUdpPort(newPort: Int) {
         if (udpPort == newPort) {
             log("UDP can't change Grpc Port -> already to $newPort")
             return
@@ -174,22 +187,23 @@ class UdpBroadcastService @Inject constructor(
 
         log("UDP change Grpc Port : $udpPort → $newPort")
 
-        listenJob?.cancelAndJoin()
-        broadcastJob?.cancelAndJoin()
-
-        listeningSocket?.close()
-        listeningSocket = null
-
         udpPort = newPort
-
-        broadcastJob = serviceScope.launch { broadcastLoop() }
-        listenJob = serviceScope.launch { listenLoop() }
+        stop(false)
+        start(
+            udpPort = udpPort,
+            grpcPort = grpcPort,
+            broadcastIntervalMs = broadcastIntervalMs,
+            deviceTimeoutMs = deviceTimeoutMs,
+            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
+            printLog = printLog
+        )
     }
 
     /* ================= INTERNAL ================= */
 
     private fun isRunning(): Boolean {
-        return serviceScope.isActive &&
+        return if (serviceScope == null) false
+        else serviceScope!!.isActive &&
                 (broadcastJob?.isActive == true || listenJob?.isActive == true)
     }
 
@@ -290,7 +304,7 @@ class UdpBroadcastService @Inject constructor(
     private suspend fun cleanupLoop() {
         log("Cleanup job started")
 
-        while (serviceScope.isActive) {
+        while (serviceScope?.isActive == true) {
             val now = System.currentTimeMillis()
 
             if (deleteDeviceOnTimeout) {

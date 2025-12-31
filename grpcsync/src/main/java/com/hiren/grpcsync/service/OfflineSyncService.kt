@@ -100,7 +100,19 @@ class OfflineSyncService : LifecycleService() {
                         grpcManager?.broadcast(message = event.payload, devices = event.devices)
                     }
 
-                    else -> {}
+                    is ServiceEvent.ChangeGrpcPort -> {
+                        Log.d("SyncService", "ServiceEvent.ChangeGrpcPort ${event.port}")
+                        udpBroadcastService.changeGrpcPort(event.port)
+                    }
+
+                    is ServiceEvent.ChangeUdpPort -> {
+                        Log.d("SyncService", "ServiceEvent.ChangeUdpPort ${event.port}")
+                        udpBroadcastService.changeUdpPort(event.port)
+                    }
+
+                    is ServiceEvent.StartStream -> {
+                        Log.d("SyncService", "ServiceEvent.Broadcast")
+                    }
                 }
             }
         }

@@ -94,4 +94,12 @@ class OfflineCommImpl @Inject constructor(
     override fun getDevices(): Flow<List<DeviceEntity>> {
         return DevicePublic.deviceRepository.observeDevices()
     }
+
+    override fun changeUdpPort(port: Int) {
+        ServiceBus.post(ServiceEvent.ChangeUdpPort(port))
+    }
+
+    override fun changeGrpcPort(port: Int) {
+        ServiceBus.post(ServiceEvent.ChangeGrpcPort(port))
+    }
 }

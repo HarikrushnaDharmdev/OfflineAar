@@ -30,4 +30,8 @@ sealed class ServiceEvent {
     data class Broadcast(val devices: List<String>, val payload: MessageEntity) : ServiceEvent()
 
     data class StartStream(val ip: String) : ServiceEvent()
+
+    data class ChangeUdpPort(val port: Int) : ServiceEvent()
+
+    data class ChangeGrpcPort(val port: Int) : ServiceEvent()
 }
