@@ -6,6 +6,7 @@ import com.hiren.grpcsync.ChatResponse
 import com.hiren.grpcsync.ChatServiceGrpc
 import com.hiren.grpcsync.ChatServiceGrpcKt
 import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.grpc.GrpcResult
 import io.grpc.Grpc
 import io.grpc.InsecureServerCredentials
 import io.grpc.ManagedChannelBuilder
@@ -15,10 +16,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -49,13 +48,15 @@ class GrpcManager {
                     port,
                     InsecureServerCredentials.create()
                 )
-                .addService(ChatService(_events))
+                //.addService(ChatService(_events))
+                .addService(ChatService())
                 .build()
                 .start()
 
             _events.tryEmit(GrpcEvent.ServerStarted(port))
 
         } catch (e: Exception) {
+            e.printStackTrace()
             _events.tryEmit(GrpcEvent.Error("SERVER", e))
             autoRestartServer()
         }
@@ -104,7 +105,8 @@ class GrpcManager {
                     .build()
             )
 
-            callback.invoke(GrpcResult.Success(ip, response))
+            //delay(10*1000L) // Simulate long processing
+            callback.invoke(GrpcResult.Success(ip, "Message sent: ${response.received}"))
 
         } catch (e: Exception) {
             callback.invoke(GrpcResult.Error(ip, e))

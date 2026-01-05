@@ -5,7 +5,7 @@ import android.content.Intent
 import android.os.Build
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.MessageEntity
-import com.hiren.grpcsync.grpc_manager.GrpcResult
+import com.hiren.grpcsync.grpc.GrpcResult
 import com.hiren.grpcsync.service.OfflineSyncService
 import com.hiren.grpcsync.utils.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext

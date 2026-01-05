@@ -7,7 +7,7 @@ import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 class ChatService(
-    private val events: MutableSharedFlow<GrpcEvent>
+    //private val events: MutableSharedFlow<GrpcEvent>
 ) : ChatServiceGrpc.ChatServiceImplBase() {
 
     override fun getChat(
@@ -15,12 +15,12 @@ class ChatService(
         responseObserver: StreamObserver<ChatResponse>
     ) {
 
-        events.tryEmit(
+        /*events.tryEmit(
             GrpcEvent.MessageReceived(
                 from = request.senderId,
                 content = request.content
             )
-        )
+        )*/
 
         responseObserver.onNext(
             ChatResponse.newBuilder()
@@ -37,9 +37,9 @@ class ChatService(
         return object : StreamObserver<ChatRequest> {
 
             override fun onNext(request: ChatRequest) {
-                events.tryEmit(
+                /*events.tryEmit(
                     GrpcEvent.MessageReceived(request.senderId, request.content)
-                )
+                )*/
 
                 // ACK back
                 responseObserver.onNext(

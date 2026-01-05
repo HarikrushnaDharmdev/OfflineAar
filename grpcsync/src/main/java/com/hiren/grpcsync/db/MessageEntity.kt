@@ -2,6 +2,7 @@ package com.hiren.grpcsync.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.hiren.grpcsync.ChatRequest
 
 @Entity
 data class MessageEntity(
@@ -13,4 +14,14 @@ data class MessageEntity(
     val content: String, // Actual Message content
     val timestamp: Long, // Time when the message was sent
     val status: Boolean // e.g., "sent", "delivered", "read"
-)
+) {
+    fun toGrpcRequest(): ChatRequest {
+        return ChatRequest.newBuilder()
+            .setChannelId(channelId)
+            .setSenderId(senderId)
+            .setReceiverId(receiverId)
+            .setContent(content)
+            .setTimestamp(timestamp)
+            .build()
+    }
+}

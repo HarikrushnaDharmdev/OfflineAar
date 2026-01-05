@@ -3,6 +3,7 @@ package com.hiren.offlineaar
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Base64
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -66,7 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.MessageEntity
-import com.hiren.grpcsync.grpc_manager.GrpcResult
+import com.hiren.grpcsync.grpc.GrpcResult
 import com.hiren.grpcsync.public_classes.OfflineCommImpl
 import com.hiren.grpcsync.utils.Utils
 import com.hiren.offlineaar.ui.theme.OfflineAarTheme
@@ -437,11 +438,24 @@ class MainActivity : ComponentActivity() {
                 receiverId = Utils.getDeviceIpAddress() ?: "",
                 content = when (result) {
                     is GrpcResult.Success -> {
+                        Log.e("sendSingleMessage: ", "RESPONSE SUCCESS : $result")
                         "Response: true"
                     }
 
                     is GrpcResult.Error -> {
+                        Log.e(
+                            "sendSingleMessage: ",
+                            "RESPONSE ERROR : ${result.throwable.localizedMessage}"
+                        )
                         "Error: ${result.throwable.localizedMessage}"
+                    }
+
+                    is GrpcResult.Timeout -> {
+                        Log.e(
+                            "sendSingleMessage: ",
+                            "GrpcResult.Timeout -> No response from ${result.ip}"
+                        )
+                        "GrpcResult.Timeout -> No response from ${result.ip}"
                     }
                 },
                 timestamp = time1,

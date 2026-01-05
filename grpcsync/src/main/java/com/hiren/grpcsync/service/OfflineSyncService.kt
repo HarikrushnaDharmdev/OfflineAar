@@ -5,6 +5,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.hiren.grpcsync.grpc.GrpcSdkImpl
 import com.hiren.grpcsync.public_classes.ServiceBus
 import com.hiren.grpcsync.public_classes.ServiceEvent
 import com.hiren.grpcsync.grpc_manager.ChannelPool
@@ -14,6 +15,9 @@ import com.hiren.grpcsync.repo.MessageRepository
 import com.hiren.grpcsync.utils.Constants
 import com.hiren.grpcsync.utils.NotificationHelper.setNotification
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -21,7 +25,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class OfflineSyncService : LifecycleService() {
 
-    private var grpcManager: GrpcManager? = null
+    private var grpcManager: GrpcSdkImpl? = null
 
     @Inject
     lateinit var udpBroadcastService: UdpBroadcastService
@@ -31,6 +35,8 @@ class OfflineSyncService : LifecycleService() {
 
     @Inject
     lateinit var messageRepository: MessageRepository
+
+    val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -149,10 +155,10 @@ class OfflineSyncService : LifecycleService() {
             deleteDeviceOnTimeout = deleteDeviceOnTimeout,
             printLog = printLog
         )
-        grpcManager = GrpcManager()
+        grpcManager = GrpcSdkImpl(serviceScope)
         grpcManager?.startServer()
 
-        lifecycleScope.launch {
+        /*lifecycleScope.launch {
             grpcManager?.events?.collect { event ->
                 when (event) {
                     is GrpcEvent.ServerStarted ->
@@ -170,7 +176,7 @@ class OfflineSyncService : LifecycleService() {
                     else -> {}
                 }
             }
-        }
+        }*/
     }
 
     fun stopServer() {

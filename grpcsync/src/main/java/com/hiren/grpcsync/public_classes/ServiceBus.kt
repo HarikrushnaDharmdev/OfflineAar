@@ -1,7 +1,7 @@
 package com.hiren.grpcsync.public_classes
 
 import com.hiren.grpcsync.db.MessageEntity
-import com.hiren.grpcsync.grpc_manager.GrpcResult
+import com.hiren.grpcsync.grpc.GrpcResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 

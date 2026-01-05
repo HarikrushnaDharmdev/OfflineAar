@@ -6,9 +6,9 @@ import android.os.Build
 import com.hiren.grpcsync.db.AppDatabase
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.grpc.GrpcResult
 import com.hiren.grpcsync.grpc_manager.ChatStreamSession
 import com.hiren.grpcsync.grpc_manager.GrpcManager
-import com.hiren.grpcsync.grpc_manager.GrpcResult
 import com.hiren.grpcsync.repo.DeviceRepositoryImpl
 import com.hiren.grpcsync.service.OfflineSyncService
 import kotlinx.coroutines.flow.Flow

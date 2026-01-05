@@ -3,8 +3,8 @@ package com.hiren.grpcsync
 import android.content.Context
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.grpc.GrpcResult
 import com.hiren.grpcsync.grpc_manager.ChatStreamSession
-import com.hiren.grpcsync.grpc_manager.GrpcResult
 import kotlinx.coroutines.flow.Flow
 
 internal interface GrpcSdk {
