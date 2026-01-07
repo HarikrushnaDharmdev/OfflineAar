@@ -17,6 +17,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -25,14 +26,14 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class OfflineSyncService : LifecycleService() {
 
-    private var grpcManager: GrpcSdkImpl? = null
-
     @Inject
     lateinit var udpBroadcastService: UdpBroadcastService
 
     private val started = AtomicBoolean(false)
 
     val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private var grpcManager: GrpcSdkImpl? = GrpcSdkImpl(serviceScope)
 
     override fun onCreate() {
         super.onCreate()
@@ -123,6 +124,7 @@ class OfflineSyncService : LifecycleService() {
                     is ServiceEvent.ChangeGrpcPort -> {
                         Log.d("SyncService", "ServiceEvent.ChangeGrpcPort ${event.port}")
                         udpBroadcastService.changeGrpcPort(event.port)
+                        grpcManager?.restartServer(event.port)
                     }
 
                     is ServiceEvent.ChangeUdpPort -> {
@@ -164,7 +166,6 @@ class OfflineSyncService : LifecycleService() {
             deleteDeviceOnTimeout = deleteDeviceOnTimeout,
             printLog = printLog
         )
-        grpcManager = GrpcSdkImpl(serviceScope)
         grpcManager?.startServer(grpcPort, provider, events)
 
         /*lifecycleScope.launch {
@@ -191,6 +192,8 @@ class OfflineSyncService : LifecycleService() {
     fun stopServer() {
         udpBroadcastService.stop()
         grpcManager?.stopServer()
+        grpcManager = null
+        serviceScope.cancel()
         ChannelPool().shutdownAll()
     }
 }

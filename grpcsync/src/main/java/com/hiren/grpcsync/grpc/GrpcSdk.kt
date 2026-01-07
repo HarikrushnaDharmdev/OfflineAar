@@ -43,4 +43,6 @@ interface GrpcSdk {
 
     /* Cleanup */
     fun shutdown()
+
+    fun restartServer(port: Int)
 }

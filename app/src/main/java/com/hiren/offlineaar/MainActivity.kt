@@ -146,7 +146,7 @@ class MainActivity : ComponentActivity() {
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
                         ) {
-                            Text("Start Sync", color = Color.White)
+                            Text("Start Service", color = Color.White)
                         }
                         Spacer(modifier = Modifier.width(10.dp))
 
@@ -157,7 +157,7 @@ class MainActivity : ComponentActivity() {
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
                         ) {
-                            Text("Stop Sync", color = Color.White)
+                            Text("Stop Service", color = Color.White)
                         }
 
                         Spacer(modifier = Modifier.width(10.dp))

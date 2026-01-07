@@ -28,6 +28,12 @@ class ServerController(
     private var server: Server? = null
 
     /**
+     * Mutex-like guard to ensure start/stop/restart operations
+     * do not overlap and corrupt server state.
+     */
+    private val lock = Any()
+
+    /**
      * Starts the gRPC server on the given [port] with the provided [service].
      *
      * - If a server instance is already running, this call is a no-op.
@@ -35,23 +41,30 @@ class ServerController(
      */
     fun start(port: Int, service: BindableService, events: MutableSharedFlow<GrpcEvent>?) {
         scope.launch {
-            // Avoid starting a new server if one is already running.
-            try {
+            synchronized(lock) {
+                // Avoid starting a new server if one is already running.
                 if (server != null) return@launch
 
-                server = Grpc
-                    .newServerBuilderForPort(
-                        port,
-                        InsecureServerCredentials.create()
-                    )
-                    .addService(service)
-                    .build()
-                    .start()
+                try {
+                    server = Grpc
+                        .newServerBuilderForPort(
+                            port,
+                            InsecureServerCredentials.create()
+                        )
+                        .addService(service)
+                        .build()
+                        .start()
 
-                events?.tryEmit(GrpcEvent.ServerStarted(port = port))
-            } catch (e: Exception) {
-                events?.tryEmit(GrpcEvent.Error(target = "ServerController.start", throwable = e))
-                e.printStackTrace()
+                    events?.tryEmit(GrpcEvent.ServerStarted(port = port))
+                } catch (e: Exception) {
+                    events?.tryEmit(
+                        GrpcEvent.Error(
+                            target = "ServerController.start",
+                            throwable = e
+                        )
+                    )
+                    e.printStackTrace()
+                }
             }
         }
     }
@@ -63,13 +76,72 @@ class ServerController(
      * Safe to call multiple times; subsequent calls after the first will be no-ops.
      */
     fun stop(events: MutableSharedFlow<GrpcEvent>?) {
-        try {
-            server?.shutdown()
-            server = null
-            events?.tryEmit(GrpcEvent.ServerStopped(reason = "Manual stop invoked"))
-        } catch (e: Exception) {
-            events?.tryEmit(GrpcEvent.Error(target = "ServerController.stop", throwable = e))
-            e.printStackTrace()
+        synchronized(lock) {
+            try {
+                server?.shutdown()
+                server = null
+                events?.tryEmit(GrpcEvent.ServerStopped(reason = "Manual stop invoked"))
+            } catch (e: Exception) {
+                events?.tryEmit(GrpcEvent.Error(target = "ServerController.stop", throwable = e))
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Restarts the gRPC server on a new port.
+     *
+     * This method:
+     * - Gracefully shuts down the existing server (if running)
+     * - Starts a new server on the provided [newPort]
+     * - Emits lifecycle events for observability
+     *
+     * This operation is asynchronous and safe to call multiple times.
+     *
+     * @param newPort New port on which the server should listen
+     * @param service gRPC service implementation
+     * @param events Optional shared flow for emitting server events
+     */
+    fun restart(
+        newPort: Int,
+        service: BindableService,
+        events: MutableSharedFlow<GrpcEvent>?
+    ) {
+        scope.launch {
+            synchronized(lock) {
+                try {
+                    // Stop existing server (if any)
+                    server?.shutdown()
+                    server = null
+
+                    events?.tryEmit(
+                        GrpcEvent.ServerStopped(
+                            reason = "Restart requested"
+                        )
+                    )
+
+                    // Start server on new port
+                    server = Grpc
+                        .newServerBuilderForPort(
+                            newPort,
+                            InsecureServerCredentials.create()
+                        )
+                        .addService(service)
+                        .build()
+                        .start()
+
+                    events?.tryEmit(
+                        GrpcEvent.ServerStarted(port = newPort)
+                    )
+                } catch (e: Exception) {
+                    events?.tryEmit(
+                        GrpcEvent.Error(
+                            target = "ServerController.restart",
+                            throwable = e
+                        )
+                    )
+                }
+            }
         }
     }
 }

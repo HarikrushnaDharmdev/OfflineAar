@@ -97,4 +97,16 @@ class GrpcSdkImpl(
         channelPool.shutdownAll()
         serviceScope.cancel()
     }
+
+    override fun restartServer(port: Int) {
+        channelPool.shutdownAll()
+        serverController.restart(
+            port, events = events,
+            service = ChatService(
+                events = events,
+                responseProvider = responseProvider,
+                scope = serviceScope
+            ),
+        )
+    }
 }
