@@ -3,7 +3,7 @@ package com.hiren.offlineaar
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hiren.grpcsync.db.DeviceEntity
-import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.public_classes.OfflineCommImpl
 import com.hiren.grpcsync.repo.DeviceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,10 +23,10 @@ class DeviceViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository
 ) : ViewModel() {
 
-    private val _messages = MutableStateFlow<ArrayList<MessageEntity>>(arrayListOf())
-    val messages: StateFlow<List<MessageEntity>> = _messages.asStateFlow()
+    private val _messages = MutableStateFlow<ArrayList<Message>>(arrayListOf())
+    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
 
-    fun addMessage(device: MessageEntity) {
+    fun addMessage(device: Message) {
         _messages.value.add(device)
     }
 

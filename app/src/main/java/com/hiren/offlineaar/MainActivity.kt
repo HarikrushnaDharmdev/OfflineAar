@@ -65,7 +65,8 @@ import androidx.compose.ui.unit.sp
 import com.hiren.grpcsync.ChatRequest
 import com.hiren.grpcsync.ChatResponse
 import com.hiren.grpcsync.db.DeviceEntity
-import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.db.Message
+import com.hiren.grpcsync.db.MessageResponse
 import com.hiren.grpcsync.grpc.ChatResponseProvider
 import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.grpc.GrpcResult
@@ -74,6 +75,7 @@ import com.hiren.grpcsync.utils.Utils
 import com.hiren.offlineaar.ui.theme.OfflineAarTheme
 import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.Calendar
 import kotlin.random.Random
@@ -162,7 +164,7 @@ class MainActivity : ComponentActivity() {
 
                         Button(
                             onClick = {
-                                offlineComm.startDiscovery()
+                                startDiscovery()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
                         ) {
@@ -186,9 +188,8 @@ class MainActivity : ComponentActivity() {
                                 offlineComm.sendMessage(
                                     ip = "192.168.2.77",
                                     port = 50051,
-                                    payload = MessageEntity(
+                                    payload = Message(
                                         messageId = 121321231L,
-                                        channelId = "deviceEntity.id",
                                         senderId = Utils.getDeviceIpAddress() ?: "",
                                         receiverId = "192.168.2.67",
                                         content = "Hello from Offline AAR",
@@ -268,20 +269,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun startDiscovery() {
+        offlineComm.startDiscovery(events = grpcEvents, provider = null)
+    }
+
     private fun startSyncService() {
-        // Register how the app wants to respond to incoming gRPC messages.
-        offlineComm.registerResponseProvider(object : ChatResponseProvider {
-            override suspend fun onMessageReceived(request: ChatRequest): ChatResponse {
-                // For now just acknowledge that we received the message.
-                return ChatResponse.newBuilder()
-                    .setReceived(true)
-                    .build()
-            }
-        })
-
-        // Register a flow that will receive gRPC events from the SDK.
-        offlineComm.registerGrpcEvents(grpcEvents)
-
         offlineComm.startService(
             context = application,
             udpPort = 35353,
@@ -439,9 +431,8 @@ class MainActivity : ComponentActivity() {
         deviceEntity: DeviceEntity
     ) {
         val time = Calendar.getInstance().timeInMillis
-        val message = MessageEntity(
+        val message = Message(
             messageId = time,
-            channelId = deviceEntity.id,
             senderId = Utils.getDeviceIpAddress() ?: "",
             receiverId = deviceEntity.id,
             content = inputText,
@@ -455,9 +446,8 @@ class MainActivity : ComponentActivity() {
             payload = message
         ) { result ->
             val time1 = Calendar.getInstance().timeInMillis
-            val message = MessageEntity(
+            val message = Message(
                 messageId = time1,
-                channelId = Utils.getDeviceIpAddress() ?: "",
                 senderId = deviceEntity.id,
                 receiverId = Utils.getDeviceIpAddress() ?: "",
                 content = when (result) {
@@ -569,7 +559,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun MessageItem(message: MessageEntity) {
+    fun MessageItem(message: Message) {
         val isUser = message.senderId == Utils.getDeviceIpAddress()
 
         Row(

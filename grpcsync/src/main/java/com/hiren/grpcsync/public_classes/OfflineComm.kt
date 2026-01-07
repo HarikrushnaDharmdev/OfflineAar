@@ -2,9 +2,12 @@ package com.hiren.grpcsync.public_classes
 
 import android.content.Context
 import com.hiren.grpcsync.db.DeviceEntity
-import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.db.Message
+import com.hiren.grpcsync.grpc.ChatResponseProvider
+import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.grpc.GrpcResult
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 
 interface OfflineComm {
 
@@ -20,23 +23,27 @@ interface OfflineComm {
 
     fun stopService(context: Context)
 
-    fun startDiscovery()
+    fun startDiscovery(
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    )
 
     fun stopDiscovery()
 
-    fun sendMessage(ip: String, port: Int, payload: MessageEntity)
+    fun sendMessage(ip: String, port: Int, payload: Message)
 
     fun sendMessageWithCallback(
         ip: String,
         port: Int,
-        payload: MessageEntity,
+        payload: Message,
         callback: (GrpcResult) -> Unit
     )
 
-    fun broadcast(devices: List<String>, payload: MessageEntity)
+    fun broadcast(devices: List<String>, payload: Message)
 
     fun getDevices(): Flow<List<DeviceEntity>>
     fun changeUdpPort(port: Int)
 
     fun changeGrpcPort(port: Int)
+
 }

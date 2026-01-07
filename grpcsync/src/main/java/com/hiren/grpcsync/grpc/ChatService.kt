@@ -68,7 +68,7 @@ class ChatService(
         if (responseProvider != null) {
             scope.launch {
                 val response = responseProvider.onMessageReceived(request)
-                responseObserver.onNext(response)
+                responseObserver.onNext(response.toGrpcRequest())
                 responseObserver.onCompleted()
             }
             // If scop not work use runBlocking here

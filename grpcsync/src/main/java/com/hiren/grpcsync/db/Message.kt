@@ -1,12 +1,10 @@
 package com.hiren.grpcsync.db
 
-import androidx.room.PrimaryKey
 import com.hiren.grpcsync.ChatRequest
+import com.hiren.grpcsync.ChatResponse
 
-data class MessageEntity(
-    @PrimaryKey(autoGenerate = true)
+data class Message(
     val messageId: Long = 0,  // Auto-generated primary key
-    val channelId: String,  // e.g., conversation or chat ID mixture of sender and receiver IDs
     val senderId: String, // Sender device IP
     val receiverId: String, // Receiver device IP
     val content: String, // Actual Message content
@@ -21,6 +19,18 @@ data class MessageEntity(
             .setContent(content)
             .setTimestamp(timestamp)
             .setStatus(status)
+            .build()
+    }
+}
+
+data class MessageResponse(
+    val received: Boolean,
+    val info: String,
+) {
+    fun toGrpcRequest(): ChatResponse {
+        return ChatResponse.newBuilder()
+            .setReceived(received)
+            .setInfo(info)
             .build()
     }
 }

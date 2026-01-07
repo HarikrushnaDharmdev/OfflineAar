@@ -9,12 +9,15 @@ import com.hiren.grpcsync.grpc.GrpcSdkImpl
 import com.hiren.grpcsync.public_classes.ServiceBus
 import com.hiren.grpcsync.public_classes.ServiceEvent
 import com.hiren.grpcsync.grpc.ChannelPool
+import com.hiren.grpcsync.grpc.ChatResponseProvider
+import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.utils.Constants
 import com.hiren.grpcsync.utils.NotificationHelper.setNotification
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -26,7 +29,6 @@ class OfflineSyncService : LifecycleService() {
 
     @Inject
     lateinit var udpBroadcastService: UdpBroadcastService
-    //lateinit var udpBroadcastService: UdpBroadcastServiceV1
 
     private val started = AtomicBoolean(false)
 
@@ -76,7 +78,9 @@ class OfflineSyncService : LifecycleService() {
                             broadcastIntervalMs = broadcastInterval,
                             deviceTimeoutMs = deviceTimeout,
                             deleteDeviceOnTimeout = deleteOnTimeout,
-                            printLog = printLog
+                            printLog = printLog,
+                            provider = event.provider,
+                            events = event.events
                         )
                     }
 
@@ -147,7 +151,9 @@ class OfflineSyncService : LifecycleService() {
         broadcastIntervalMs: Long = 3000L,
         deviceTimeoutMs: Long = 10000L,
         deleteDeviceOnTimeout: Boolean = false,
-        printLog: Boolean = true
+        printLog: Boolean = true,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
     ) {
 
         udpBroadcastService.start(
@@ -159,7 +165,7 @@ class OfflineSyncService : LifecycleService() {
             printLog = printLog
         )
         grpcManager = GrpcSdkImpl(serviceScope)
-        grpcManager?.startServer(grpcPort)
+        grpcManager?.startServer(grpcPort, provider, events)
 
         /*lifecycleScope.launch {
             grpcManager?.events?.collect { event ->

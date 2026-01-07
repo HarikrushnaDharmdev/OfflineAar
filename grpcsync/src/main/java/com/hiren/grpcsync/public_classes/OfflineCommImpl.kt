@@ -4,12 +4,15 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.hiren.grpcsync.db.DeviceEntity
-import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.db.Message
+import com.hiren.grpcsync.grpc.ChatResponseProvider
+import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.grpc.GrpcResult
 import com.hiren.grpcsync.service.OfflineSyncService
 import com.hiren.grpcsync.utils.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,9 +21,9 @@ class OfflineCommImpl @Inject constructor(
     @ApplicationContext private val context: Context
 ) : OfflineComm {
 
-    init {
+    /*init {
         DevicePublic.init(context)
-    }
+    }*/
 
     /*companion object {
         @Volatile
@@ -65,22 +68,31 @@ class OfflineCommImpl @Inject constructor(
         context.stopService(Intent(context, OfflineSyncService::class.java))
     }
 
-    override fun startDiscovery() {
-        ServiceBus.post(ServiceEvent.StartDiscovery)
+    override fun startDiscovery(
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    ) {
+        ServiceBus.post(
+            ServiceEvent.StartDiscovery(
+                provider = provider,
+                events = events
+            )
+        )
     }
 
-    override fun stopDiscovery() {
+    override fun stopDiscovery(
+    ) {
         ServiceBus.post(ServiceEvent.StopDiscovery)
     }
 
-    override fun sendMessage(ip: String, port: Int, payload: MessageEntity) {
+    override fun sendMessage(ip: String, port: Int, payload: Message) {
         ServiceBus.post(ServiceEvent.Send(ip = ip, port = port, payload = payload))
     }
 
     override fun sendMessageWithCallback(
         ip: String,
         port: Int,
-        payload: MessageEntity,
+        payload: Message,
         callback: (GrpcResult) -> Unit
     ) {
         ServiceBus.post(
@@ -93,7 +105,7 @@ class OfflineCommImpl @Inject constructor(
         )
     }
 
-    override fun broadcast(devices: List<String>, payload: MessageEntity) {
+    override fun broadcast(devices: List<String>, payload: Message) {
         ServiceBus.post(
             ServiceEvent.Broadcast(devices, payload)
         )

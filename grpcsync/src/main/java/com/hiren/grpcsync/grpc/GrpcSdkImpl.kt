@@ -1,7 +1,7 @@
 package com.hiren.grpcsync.grpc
 
 import com.hiren.grpcsync.ChatServiceGrpcKt
-import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.db.Message
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,26 +21,30 @@ class GrpcSdkImpl(
     private var responseProvider: ChatResponseProvider? = null
     private var events: MutableSharedFlow<GrpcEvent>? = null
 
-    override fun startServer(startPort: Int) {
+    override fun startServer(
+        startPort: Int,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    ) {
+        this.responseProvider = provider
+        this.events = events
+
         serverController.start(
-            startPort,
-            service = ChatService(events = events, responseProvider = responseProvider, scope = serviceScope)
+            port = startPort,
+            service = ChatService(
+                events = events,
+                responseProvider = responseProvider,
+                scope = serviceScope
+            ),
+            events = events
         )
     }
 
     override fun stopServer() {
-        serverController.stop()
+        serverController.stop(events)
     }
 
-    override fun registerResponseProvider(provider: ChatResponseProvider) {
-        this.responseProvider = provider
-    }
-
-    override fun registerGrpcEvents(events: MutableSharedFlow<GrpcEvent>) {
-        this.events = events
-    }
-
-    override fun sendMessage(ip: String, port: Int, message: MessageEntity) {
+    override fun sendMessage(ip: String, port: Int, message: Message) {
         serviceScope.launch {
             try {
                 val channel = channelPool.get(ip, port)
@@ -55,7 +59,7 @@ class GrpcSdkImpl(
     override fun sendMessageWithCallback(
         ip: String,
         port: Int,
-        message: MessageEntity,
+        message: Message,
         callback: (GrpcResult) -> Unit
     ) {
         serviceScope.launch {
@@ -63,7 +67,7 @@ class GrpcSdkImpl(
                 val channel = channelPool.get(ip, port)
                 val stub = ChatServiceGrpcKt.ChatServiceCoroutineStub(channel)
                 val response = stub.getChat(message.toGrpcRequest())
-                callback(GrpcResult.Success(ip, response.received.toString()))
+                callback(GrpcResult.Success(ip, response.toString()))
             } catch (e: Exception) {
                 e.printStackTrace()
                 callback(GrpcResult.Error(ip, e))
@@ -71,7 +75,7 @@ class GrpcSdkImpl(
         }
     }
 
-    override fun broadcast(devices: List<String>, message: MessageEntity) {
+    override fun broadcast(devices: List<String>, message: Message) {
         devices.forEach { ip ->
             serviceScope.launch {
                 broadcastLimiter.withPermit {

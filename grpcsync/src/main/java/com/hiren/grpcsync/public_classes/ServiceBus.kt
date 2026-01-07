@@ -1,6 +1,8 @@
 package com.hiren.grpcsync.public_classes
 
-import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.db.Message
+import com.hiren.grpcsync.grpc.ChatResponseProvider
+import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.grpc.GrpcResult
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -20,22 +22,26 @@ internal object ServiceBus {
 }
 
 sealed class ServiceEvent {
-    object StartDiscovery : ServiceEvent()
+
+    data class StartDiscovery(
+        val provider: ChatResponseProvider?,
+        val events: MutableSharedFlow<GrpcEvent>?
+    ) : ServiceEvent()
 
     object StopDiscovery : ServiceEvent()
 
     object Stop : ServiceEvent()
 
-    data class Send(val ip: String, val port: Int, val payload: MessageEntity) : ServiceEvent()
+    data class Send(val ip: String, val port: Int, val payload: Message) : ServiceEvent()
 
     data class SendWithCallback(
         val ip: String,
         val port: Int,
-        val payload: MessageEntity,
+        val payload: Message,
         val callback: (GrpcResult) -> Unit
     ) : ServiceEvent()
 
-    data class Broadcast(val devices: List<String>, val payload: MessageEntity) : ServiceEvent()
+    data class Broadcast(val devices: List<String>, val payload: Message) : ServiceEvent()
 
     data class StartStream(val ip: String, val port: Int) : ServiceEvent()
 

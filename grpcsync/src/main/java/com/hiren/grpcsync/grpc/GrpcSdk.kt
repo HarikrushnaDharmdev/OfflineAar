@@ -1,12 +1,16 @@
 package com.hiren.grpcsync.grpc
 
-import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.db.Message
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 interface GrpcSdk {
 
     /* Server lifecycle */
-    fun startServer(startPort: Int)
+    fun startServer(
+        startPort: Int,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    )
 
     fun stopServer()
 
@@ -14,21 +18,21 @@ interface GrpcSdk {
     fun sendMessage(
         ip: String,
         port: Int,
-        message: MessageEntity
+        message: Message
     )
 
     /* 2. Send with callback */
     fun sendMessageWithCallback(
         ip: String,
         port: Int,
-        message: MessageEntity,
+        message: Message,
         callback: (GrpcResult) -> Unit
     )
 
     /* 3. Broadcast */
     fun broadcast(
         devices: List<String>,
-        message: MessageEntity
+        message: Message
     )
 
     /* 4. Stream */
@@ -39,8 +43,4 @@ interface GrpcSdk {
 
     /* Cleanup */
     fun shutdown()
-
-    fun registerResponseProvider(provider: ChatResponseProvider)
-
-    fun registerGrpcEvents(events: MutableSharedFlow<GrpcEvent>)
 }
