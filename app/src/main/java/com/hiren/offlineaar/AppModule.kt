@@ -14,10 +14,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    /* @Provides
-     @Singleton
-     fun provideGrpcSdk(): GrpcSdk = GrpcSdkImpl()*/
-
     @Provides
     @Singleton
     fun provideOfflineComm(@ApplicationContext appContext: Context): OfflineComm =

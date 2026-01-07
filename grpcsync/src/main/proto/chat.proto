@@ -7,16 +7,17 @@ option java_multiple_files = true;
 
 message ChatRequest {
   int64 messageId = 1; // TimeStamp
-  string channelId = 2; // Sender_receiver
   string senderId = 3; // Ip of Sender
   string receiverId = 4; // Ip of Receiver
   string content = 5; // Message Content
   int64 timestamp = 6; // Sent Time
   bool status = 7; // Message Status "sent"
+  string type = 8; // Message type such as "EDIT", "ADD", "DELETE"
 }
 
 message ChatResponse {
   bool received = 1;
+  string info = 2;
 }
 
 service ChatService {

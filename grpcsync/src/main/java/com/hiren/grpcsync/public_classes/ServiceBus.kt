@@ -26,13 +26,18 @@ sealed class ServiceEvent {
 
     object Stop : ServiceEvent()
 
-    data class Send(val ip: String, val payload: MessageEntity) : ServiceEvent()
+    data class Send(val ip: String, val port: Int, val payload: MessageEntity) : ServiceEvent()
 
-    data class SendWithCallback(val ip: String, val payload: MessageEntity, val callback: (GrpcResult) -> Unit) : ServiceEvent()
+    data class SendWithCallback(
+        val ip: String,
+        val port: Int,
+        val payload: MessageEntity,
+        val callback: (GrpcResult) -> Unit
+    ) : ServiceEvent()
 
     data class Broadcast(val devices: List<String>, val payload: MessageEntity) : ServiceEvent()
 
-    data class StartStream(val ip: String) : ServiceEvent()
+    data class StartStream(val ip: String, val port: Int) : ServiceEvent()
 
     data class ChangeUdpPort(val port: Int) : ServiceEvent()
 

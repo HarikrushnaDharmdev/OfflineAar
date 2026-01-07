@@ -18,10 +18,11 @@ class StreamManager(
 
     fun open(
         ip: String,
+        port: Int,
     ): ChatStreamSession {
 
 
-        val channel = channelPool.get(ip)
+        val channel = channelPool.get(ip, port)
         val stub = ChatServiceGrpc.newStub(channel)
 
 

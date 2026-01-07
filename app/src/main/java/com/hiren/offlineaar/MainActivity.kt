@@ -38,7 +38,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -57,22 +56,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hiren.grpcsync.ChatRequest
+import com.hiren.grpcsync.ChatResponse
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.MessageEntity
+import com.hiren.grpcsync.grpc.ChatResponseProvider
+import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.grpc.GrpcResult
 import com.hiren.grpcsync.public_classes.OfflineCommImpl
 import com.hiren.grpcsync.utils.Utils
 import com.hiren.offlineaar.ui.theme.OfflineAarTheme
 import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
+import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.Calendar
 import kotlin.random.Random
 
@@ -81,6 +83,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var offlineComm: OfflineCommImpl
+
+    // SharedFlow to receive gRPC events from the SDK (server started, messages, errors, etc.)
+    private val grpcEvents = MutableSharedFlow<GrpcEvent>(
+        replay = 0,
+        extraBufferCapacity = 64
+    )
 
     private val viewModel: DeviceViewModel by viewModels()
 
@@ -176,7 +184,9 @@ class MainActivity : ComponentActivity() {
                         Button(
                             onClick = {
                                 offlineComm.sendMessage(
-                                    ip = "192.168.2.77", payload = MessageEntity(
+                                    ip = "192.168.2.77",
+                                    port = 50051,
+                                    payload = MessageEntity(
                                         messageId = 121321231L,
                                         channelId = "deviceEntity.id",
                                         senderId = Utils.getDeviceIpAddress() ?: "",
@@ -259,6 +269,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startSyncService() {
+        // Register how the app wants to respond to incoming gRPC messages.
+        offlineComm.registerResponseProvider(object : ChatResponseProvider {
+            override suspend fun onMessageReceived(request: ChatRequest): ChatResponse {
+                // For now just acknowledge that we received the message.
+                return ChatResponse.newBuilder()
+                    .setReceived(true)
+                    .build()
+            }
+        })
+
+        // Register a flow that will receive gRPC events from the SDK.
+        offlineComm.registerGrpcEvents(grpcEvents)
+
         offlineComm.startService(
             context = application,
             udpPort = 35353,
@@ -428,6 +451,7 @@ class MainActivity : ComponentActivity() {
         viewModel.addMessage(message)
         offlineComm.sendMessageWithCallback(
             ip = deviceEntity.id,
+            port = deviceEntity.port,
             payload = message
         ) { result ->
             val time1 = Calendar.getInstance().timeInMillis

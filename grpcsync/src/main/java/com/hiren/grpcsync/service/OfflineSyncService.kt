@@ -8,10 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import com.hiren.grpcsync.grpc.GrpcSdkImpl
 import com.hiren.grpcsync.public_classes.ServiceBus
 import com.hiren.grpcsync.public_classes.ServiceEvent
-import com.hiren.grpcsync.grpc_manager.ChannelPool
-import com.hiren.grpcsync.grpc_manager.GrpcEvent
-import com.hiren.grpcsync.grpc_manager.GrpcManager
-import com.hiren.grpcsync.repo.MessageRepository
+import com.hiren.grpcsync.grpc.ChannelPool
 import com.hiren.grpcsync.utils.Constants
 import com.hiren.grpcsync.utils.NotificationHelper.setNotification
 import dagger.hilt.android.AndroidEntryPoint
@@ -32,9 +29,6 @@ class OfflineSyncService : LifecycleService() {
     //lateinit var udpBroadcastService: UdpBroadcastServiceV1
 
     private val started = AtomicBoolean(false)
-
-    @Inject
-    lateinit var messageRepository: MessageRepository
 
     val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -99,13 +93,22 @@ class OfflineSyncService : LifecycleService() {
                     is ServiceEvent.Send -> {
                         Log.d("SyncService", "ServiceEvent.Send")
                         Log.d("SyncService", "$grpcManager.")
-                        grpcManager?.sendMessage(ip = event.ip, message = event.payload)
+                        grpcManager?.sendMessage(
+                            ip = event.ip,
+                            port = event.port,
+                            message = event.payload
+                        )
                     }
 
                     is ServiceEvent.SendWithCallback -> {
                         Log.d("SyncService", "ServiceEvent.Send")
                         Log.d("SyncService", "$grpcManager.")
-                        grpcManager?.sendMessageWithCallback(ip = event.ip, message = event.payload, callback = event.callback)
+                        grpcManager?.sendMessageWithCallback(
+                            ip = event.ip,
+                            port = event.port,
+                            message = event.payload,
+                            callback = event.callback
+                        )
                     }
 
                     is ServiceEvent.Broadcast -> {
@@ -156,7 +159,7 @@ class OfflineSyncService : LifecycleService() {
             printLog = printLog
         )
         grpcManager = GrpcSdkImpl(serviceScope)
-        grpcManager?.startServer()
+        grpcManager?.startServer(grpcPort)
 
         /*lifecycleScope.launch {
             grpcManager?.events?.collect { event ->
@@ -182,6 +185,6 @@ class OfflineSyncService : LifecycleService() {
     fun stopServer() {
         udpBroadcastService.stop()
         grpcManager?.stopServer()
-        ChannelPool.shutdownAll()
+        ChannelPool().shutdownAll()
     }
 }

@@ -1,10 +1,8 @@
 package com.hiren.grpcsync.db
 
-import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.hiren.grpcsync.ChatRequest
 
-@Entity
 data class MessageEntity(
     @PrimaryKey(autoGenerate = true)
     val messageId: Long = 0,  // Auto-generated primary key
@@ -17,11 +15,12 @@ data class MessageEntity(
 ) {
     fun toGrpcRequest(): ChatRequest {
         return ChatRequest.newBuilder()
-            .setChannelId(channelId)
+            .setMessageId(messageId)
             .setSenderId(senderId)
             .setReceiverId(receiverId)
             .setContent(content)
             .setTimestamp(timestamp)
+            .setStatus(status)
             .build()
     }
 }

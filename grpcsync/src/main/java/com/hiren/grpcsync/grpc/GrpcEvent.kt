@@ -1,4 +1,4 @@
-package com.hiren.grpcsync.grpc_manager
+package com.hiren.grpcsync.grpc
 
 sealed class GrpcEvent {
     data class ServerStarted(val port: Int) : GrpcEvent()

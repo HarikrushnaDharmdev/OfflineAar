@@ -24,10 +24,14 @@ interface OfflineComm {
 
     fun stopDiscovery()
 
-    fun sendMessage(ip: String, payload: MessageEntity)
+    fun sendMessage(ip: String, port: Int, payload: MessageEntity)
 
-    //fun sendMessageWithCallback(ip: String, payload: MessageEntity, callbackFlow: Flow<GrpcResult>)
-    fun sendMessageWithCallback(ip: String, payload: MessageEntity, callback: (GrpcResult) -> Unit)
+    fun sendMessageWithCallback(
+        ip: String,
+        port: Int,
+        payload: MessageEntity,
+        callback: (GrpcResult) -> Unit
+    )
 
     fun broadcast(devices: List<String>, payload: MessageEntity)
 

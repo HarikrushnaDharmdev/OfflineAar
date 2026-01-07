@@ -73,16 +73,24 @@ class OfflineCommImpl @Inject constructor(
         ServiceBus.post(ServiceEvent.StopDiscovery)
     }
 
-    override fun sendMessage(ip: String, payload: MessageEntity) {
-        ServiceBus.post(ServiceEvent.Send(ip, payload))
+    override fun sendMessage(ip: String, port: Int, payload: MessageEntity) {
+        ServiceBus.post(ServiceEvent.Send(ip = ip, port = port, payload = payload))
     }
 
     override fun sendMessageWithCallback(
         ip: String,
+        port: Int,
         payload: MessageEntity,
         callback: (GrpcResult) -> Unit
     ) {
-        ServiceBus.post(ServiceEvent.SendWithCallback(ip, payload, callback))
+        ServiceBus.post(
+            ServiceEvent.SendWithCallback(
+                ip = ip,
+                payload = payload,
+                port = port,
+                callback = callback
+            )
+        )
     }
 
     override fun broadcast(devices: List<String>, payload: MessageEntity) {
