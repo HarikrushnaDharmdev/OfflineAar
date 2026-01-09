@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import java.util.concurrent.ConcurrentHashMap
 
-class StreamManager(
+internal class StreamManager(
     private val scope: CoroutineScope,
     private val channelPool: ChannelPool
 ) {

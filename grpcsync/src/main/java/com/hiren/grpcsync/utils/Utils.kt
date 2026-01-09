@@ -1,5 +1,6 @@
 package com.hiren.grpcsync.utils
 
+import android.util.Log
 import java.net.NetworkInterface
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -42,6 +43,11 @@ object Utils {
         }
 
         return format.format(Date(timestamp))
+    }
+
+    fun eventLog(tag: String, message: String) {
+        if (Constants.PRINT_LOG)
+            Log.d("GRPC SYNC ->> $tag", message)
     }
 
 }

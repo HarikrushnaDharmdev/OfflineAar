@@ -28,12 +28,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.OfflineAar">
 
-        <!--android:process=":DEVICE_SYNC_SERVICE"-->
         <service
             android:name=".service.OfflineSyncService"
             android:enabled="true"
+            android:exported="true"
+            android:foregroundServiceType="dataSync|connectedDevice" />
+
+        <service
+            android:name=".service.UDPDiscoveryService"
+            android:enabled="true"
+            android:exported="true"
             android:foregroundServiceType="dataSync|connectedDevice"
-            android:exported="true" />
+            android:process=":DEVICE_SYNC_SERVICE" />
 
     </application>
 

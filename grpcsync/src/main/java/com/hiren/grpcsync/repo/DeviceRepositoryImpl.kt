@@ -11,4 +11,8 @@ class DeviceRepositoryImpl(private val deviceDao: DeviceDao) : DeviceRepository 
     override suspend fun deleteAllDevices() {
         deviceDao.deleteAllDevices()
     }
+
+    override suspend fun getAllDevices(): List<DeviceEntity> {
+        return deviceDao.getAllDevice()
+    }
 }

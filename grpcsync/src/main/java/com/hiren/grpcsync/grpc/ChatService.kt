@@ -1,14 +1,16 @@
 package com.hiren.grpcsync.grpc
 
-import android.util.Log
 import com.hiren.grpcsync.ChatRequest
 import com.hiren.grpcsync.ChatResponse
 import com.hiren.grpcsync.ChatServiceGrpc
+import com.hiren.grpcsync.db.Message
+import com.hiren.grpcsync.utils.Constants.RESPONSE_TIMEOUT_MS
+import com.hiren.grpcsync.utils.Utils.eventLog
 import io.grpc.stub.StreamObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * gRPC server-side implementation of [ChatServiceGrpc.ChatServiceImplBase].
@@ -24,7 +26,7 @@ import kotlinx.coroutines.runBlocking
  * This class is intended to run inside a long-lived component such as a
  * foreground service.
  */
-class ChatService(
+internal class ChatService(
     /**
      * SharedFlow used to publish incoming gRPC events to the application layer.
      *
@@ -59,24 +61,66 @@ class ChatService(
         events?.tryEmit(
             GrpcEvent.MessageReceived(
                 from = request.senderId,
-                content = request.content
+                message = getMessageFromGrpcRequest(request)
             )
         )
 
-        Log.e("RECEIVED_MESSAGE_FROM_SERVER", "getChat: ${request.content}")
+        eventLog(
+            "ChatService",
+            "Received message from ${request.messageId}: ${request.content}"
+        )
 
         if (responseProvider != null) {
+            eventLog(
+                "ChatService",
+                "waiting response for message from ${request.messageId}"
+            )
+
             scope.launch {
-                val response = responseProvider.onMessageReceived(request)
-                responseObserver.onNext(response.toGrpcRequest())
-                responseObserver.onCompleted()
+                try {
+                    val response = withTimeoutOrNull(RESPONSE_TIMEOUT_MS) {
+                        responseProvider.onMessageReceived(request)
+                    }
+
+                    if (response != null) {
+                        // Response arrived within timeout
+                        eventLog(
+                            "ChatService",
+                            "sending response to ${request.messageId}"
+                        )
+
+                        responseObserver.onNext(response.toGrpcRequest())
+                    } else {
+                        // Timeout occurred
+                        eventLog(
+                            "ChatService",
+                            "response timeout for ${request.messageId}"
+                        )
+
+                        responseObserver.onNext(
+                            ChatResponse.newBuilder()
+                                .setReceived(false)
+                                .setInfo("Response timeout for ${request.messageId}")
+                                .build()
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Defensive: provider threw unexpectedly
+                    responseObserver.onNext(
+                        ChatResponse.newBuilder()
+                            .setReceived(false)
+                            .setInfo(e.message ?: "Internal error ${request.messageId}")
+                            .build()
+                    )
+                    eventLog(
+                        "ChatService",
+                        "e.message ?: Internal error for ${request.messageId}"
+                    )
+                } finally {
+                    // gRPC contract: MUST complete
+                    responseObserver.onCompleted()
+                }
             }
-            // If scop not work use runBlocking here
-            /* val response = runBlocking {
-                 responseProvider.onMessageReceived(request)
-             }
-             responseObserver.onNext(response)
-             responseObserver.onCompleted()*/
         } else {
             responseObserver.onNext(
                 ChatResponse.newBuilder()
@@ -115,10 +159,15 @@ class ChatService(
              * back to the client.
              */
             override fun onNext(request: ChatRequest) {
+                eventLog(
+                    "ChatService",
+                    "streamChat onNext from ${request.messageId}: ${request.content}"
+                )
+
                 events?.tryEmit(
                     GrpcEvent.MessageReceived(
                         from = request.senderId,
-                        content = request.content
+                        message = getMessageFromGrpcRequest(request)
                     )
                 )
 
@@ -141,6 +190,11 @@ class ChatService(
              * Consider logging and emitting a connection-related event here.
              */
             override fun onError(t: Throwable) {
+                t.printStackTrace()
+                eventLog(
+                    "ChatService",
+                    "streamChat onError"
+                )
                 // stream broken
             }
 
@@ -151,8 +205,24 @@ class ChatService(
              * The server responds by completing its side of the stream.
              */
             override fun onCompleted() {
+                eventLog(
+                    "ChatService",
+                    "streamChat onCompleted"
+                )
                 responseObserver.onCompleted()
             }
         }
+    }
+
+    fun getMessageFromGrpcRequest(request: ChatRequest): Message {
+        return Message(
+            messageId = request.messageId,
+            senderId = request.senderId,
+            receiverId = request.receiverId,
+            content = request.content,
+            timestamp = request.timestamp,
+            status = request.status,
+            type = request.type
+        )
     }
 }

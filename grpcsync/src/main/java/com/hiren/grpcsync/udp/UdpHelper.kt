@@ -1,34 +1,27 @@
-package com.hiren.grpcsync.service
+package com.hiren.grpcsync.udp
 
 import android.os.Build
 import android.util.Log
 import com.hiren.grpcsync.db.DeviceDao
 import com.hiren.grpcsync.db.DeviceEntity
+import com.hiren.grpcsync.service.UDPDiscoveryService
+import com.hiren.grpcsync.utils.Constants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import java.io.IOException
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.SocketException
 import java.net.SocketTimeoutException
-import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.collections.getOrNull
-import kotlin.text.split
-import kotlin.text.toByteArray
-import kotlin.text.toInt
 
 /**
  * UdpBroadcastService
@@ -50,23 +43,23 @@ import kotlin.text.toInt
  * - stop() gracefully cancels jobs and closes sockets
  */
 @Singleton
-class UdpBroadcastService @Inject constructor(
+class UdpHelper @Inject constructor(
     private val deviceDao: DeviceDao
 ) {
 
     /* ================= CONFIG ================= */
 
     /** UDP broadcast port (5-digit range recommended) */
-    private var udpPort = 10080
+    private var udpPort = Constants.DEFAULT_UDP_PORT
 
     /** gRPC server port shared with other devices */
-    private var grpcPort = 50051
+    private var grpcPort = Constants.DEFAULT_GRPC_PORT
 
     /** Interval between UDP broadcast packets (in milliseconds) */
-    private var broadcastIntervalMs = 3000L
+    private var broadcastIntervalMs = Constants.DEFAULT_BROADCAST_INTERVAL
 
     /** Timeout after which a device is considered offline (in milliseconds) */
-    private var deviceTimeoutMs = 10000L
+    private var deviceTimeoutMs = Constants.DEFAULT_DEVICE_TIMEOUT
 
     /**
      * If true:
@@ -76,9 +69,6 @@ class UdpBroadcastService @Inject constructor(
      */
     private var deleteDeviceOnTimeout = false
 
-    /** Enable or disable log printing */
-    private var printLog = true
-
     /* ================= COROUTINE ================= */
 
     /**
@@ -86,6 +76,9 @@ class UdpBroadcastService @Inject constructor(
      * Cancelling this scope stops everything safely.
      */
     private var serviceScope: CoroutineScope? = null
+
+    @Volatile
+    private var running: Boolean = false
 
     private var broadcastJob: Job? = null
     private var listenJob: Job? = null
@@ -106,17 +99,15 @@ class UdpBroadcastService @Inject constructor(
      * @param broadcastIntervalMs Interval between broadcasts
      * @param deviceTimeoutMs Offline timeout threshold
      * @param deleteDeviceOnTimeout Whether to delete or mark devices offline
-     * @param printLog Enable debug logs
      */
     fun start(
         udpPort: Int = 10080,
         grpcPort: Int = 50051,
         broadcastIntervalMs: Long = 3000L,
         deviceTimeoutMs: Long = 10000L,
-        deleteDeviceOnTimeout: Boolean = false,
-        printLog: Boolean = true
+        deleteDeviceOnTimeout: Boolean = false
     ) {
-        if (isRunning()) {
+        if (running) {
             log("UDP service already running")
             return
         }
@@ -126,11 +117,11 @@ class UdpBroadcastService @Inject constructor(
         this.broadcastIntervalMs = broadcastIntervalMs
         this.deviceTimeoutMs = deviceTimeoutMs
         this.deleteDeviceOnTimeout = deleteDeviceOnTimeout
-        this.printLog = printLog
 
+        running = true
         serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-        log("UDP service starting")
+        log("UDP discovery started on port $udpPort")
 
         broadcastJob = serviceScope?.launch { broadcastLoop() }
         listenJob = serviceScope?.launch { listenLoop() }
@@ -142,14 +133,22 @@ class UdpBroadcastService @Inject constructor(
      * Safely closes UDP sockets.
      */
     fun stop(needOfflineDevices: Boolean = true) {
+        if (!running) return
+
+        running = false
         log("UDP service stopping")
 
-        if (needOfflineDevices)
-            runBlocking {
-                withContext(Dispatchers.IO) {
-                    deviceDao.offlineAllDevice()
-                }
+        serviceScope?.launch {
+            if (needOfflineDevices) {
+                deviceDao.offlineAllDevice()
             }
+        }
+        /* if (needOfflineDevices)
+             runBlocking {
+                 withContext(Dispatchers.IO) {
+                     deviceDao.offlineAllDevice()
+                 }
+             }*/
 
         broadcastJob?.cancel()
         broadcastJob = null
@@ -172,7 +171,7 @@ class UdpBroadcastService @Inject constructor(
      */
     fun changeGrpcPort(port: Int) {
         grpcPort = port
-        log("UDP change Grpc Port to $port")
+        log("gRPC port updated to $port")
     }
 
     /**
@@ -194,18 +193,17 @@ class UdpBroadcastService @Inject constructor(
             grpcPort = grpcPort,
             broadcastIntervalMs = broadcastIntervalMs,
             deviceTimeoutMs = deviceTimeoutMs,
-            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
-            printLog = printLog
+            deleteDeviceOnTimeout = deleteDeviceOnTimeout
         )
     }
 
     /* ================= INTERNAL ================= */
 
-    private fun isRunning(): Boolean {
+    /*private fun isRunning(): Boolean {
         return if (serviceScope == null) false
         else serviceScope!!.isActive &&
                 (broadcastJob?.isActive == true || listenJob?.isActive == true)
-    }
+    }*/
 
     /**
      * Periodically broadcasts this device info via UDP
@@ -229,9 +227,9 @@ class UdpBroadcastService @Inject constructor(
                         broadcastAddress,
                         udpPort
                     )
-
                     socket.send(packet)
-                    log("Broadcast socket sent: $payload")
+
+                    log("Broadcast sent: $payload")
                 } catch (e: Exception) {
                     log("Broadcast error: ${e.message}")
                 }
@@ -265,7 +263,7 @@ class UdpBroadcastService @Inject constructor(
                 // allow coroutine cancellation
                 log("SocketTimeoutException error: ${e.message}")
             } catch (e: SocketException) {
-                if (!isActive) return@coroutineScope
+                if (!isActive) break
                 log("Socket error: ${e.message}")
             } catch (e: Exception) {
                 log("Listen error: ${e.message}")
@@ -313,13 +311,13 @@ class UdpBroadcastService @Inject constructor(
                 deviceDao.updateStaleDevices(now, deviceTimeoutMs)
             }
 
-            delay(2500)
+            delay(UDPDiscoveryService.cleanUpTimeoutDelay)
         }
     }
 
     private fun log(msg: String) {
-        if (printLog) {
-            Log.d("UdpBroadcastService", msg)
+        if (UDPDiscoveryService.printLog) {
+            Log.d("GRPC SYNC ->> UdpHelper", msg)
         }
     }
 }

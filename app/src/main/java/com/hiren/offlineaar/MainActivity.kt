@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -39,6 +40,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -59,11 +61,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
 import com.hiren.grpcsync.ChatRequest
-import com.hiren.grpcsync.ChatResponse
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.db.MessageResponse
@@ -75,10 +78,9 @@ import com.hiren.grpcsync.utils.Utils
 import com.hiren.offlineaar.ui.theme.OfflineAarTheme
 import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import java.util.Calendar
-import kotlin.random.Random
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -105,6 +107,27 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        lifecycleScope.launch {
+            grpcEvents.collect { event ->
+                when (event) {
+                    is GrpcEvent.ServerStarted ->
+                        Log.d("GRPC ->>>>>>", "Server started on ${event.port}")
+
+                    is GrpcEvent.ServerStopped ->
+                        Log.d("GRPC ->>>>>>", "Server Stopped")
+
+                    is GrpcEvent.MessageReceived ->
+                        Log.d("GRPC ->>>>>>", "From ${event.from}: ${event.message}")
+
+                    is GrpcEvent.MessageSent ->
+                        Log.d("GRPC ->>>>>>", "Sent to ${event.to}")
+
+                    is GrpcEvent.Error ->
+                        Log.e("GRPC ->>>>>>", "Error ${event.target}", event.throwable)
+                }
+            }
+        }
     }
 
     @Preview
@@ -119,9 +142,9 @@ class MainActivity : ComponentActivity() {
 
         val selectedUser by viewModel.selectedDevice.collectAsState()
 
-        var isStarted by remember {
-            mutableStateOf(false)
-        }
+        var udpPortText by remember { mutableStateOf("") }
+        var grpcPortText by remember { mutableStateOf("") }
+        var broadCastMessage by remember { mutableStateOf("") }
 
         Row(
             modifier = Modifier
@@ -138,101 +161,149 @@ class MainActivity : ComponentActivity() {
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column {
-                    Row(modifier = Modifier.padding(10.dp)) {
+                    Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
                         Button(
                             onClick = {
-                                isStarted = true
                                 startSyncService()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                         ) {
-                            Text("Start Service", color = Color.White)
+                            Text("Start", color = Color.White)
                         }
                         Spacer(modifier = Modifier.width(10.dp))
 
                         Button(
                             onClick = {
-                                isStarted = false
                                 stopSyncService()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63))
                         ) {
-                            Text("Stop Service", color = Color.White)
+                            Text("Stop", color = Color.White)
                         }
 
                         Spacer(modifier = Modifier.width(10.dp))
-
-                        Button(
-                            onClick = {
-                                startDiscovery()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
-                        ) {
-                            Text("startDiscovery", color = Color.White)
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        Button(
-                            onClick = {
-                                offlineComm.stopDiscovery()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
-                        ) {
-                            Text("stopDiscovery", color = Color.White)
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                    }
-                    Row(modifier = Modifier.padding(10.dp)) {
-                        Button(
-                            onClick = {
-                                offlineComm.sendMessage(
-                                    ip = "192.168.2.77",
-                                    port = 50051,
-                                    payload = Message(
-                                        messageId = 121321231L,
-                                        senderId = Utils.getDeviceIpAddress() ?: "",
-                                        receiverId = "192.168.2.67",
-                                        content = "Hello from Offline AAR",
-                                        timestamp = 12145122145L,
-                                        status = false
-                                    )
-                                )
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
-                        ) {
-                            Text("msg", color = Color.White)
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
 
                         Button(
                             onClick = {
                                 viewModel.deleteAllDevices()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF000000))
                         ) {
                             Text("Delete All Devices", color = Color.White)
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
+
+                    }
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        // UDP Port Input
+                        OutlinedTextField(
+                            value = udpPortText,
+                            onValueChange = { value ->
+                                if (value.all { it.isDigit() }) {
+                                    udpPortText = value
+                                }
+                            },
+                            label = { Text("UDP Port") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number
+                            ),
+                            modifier = Modifier.width(120.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         Button(
                             onClick = {
-                                offlineComm.changeUdpPort(35363)
+                                udpPortText.toIntOrNull()?.let { port ->
+                                    offlineComm.changeUdpPort(port)
+                                }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
                         ) {
-                            Text("Change UDP Port", color = Color.White)
+                            Text("Set UDP", color = Color.White)
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // gRPC Port Input
+                        OutlinedTextField(
+                            value = grpcPortText,
+                            onValueChange = { value ->
+                                if (value.all { it.isDigit() }) {
+                                    grpcPortText = value
+                                }
+                            },
+                            label = { Text("gRPC Port") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number
+                            ),
+                            modifier = Modifier.width(120.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         Button(
                             onClick = {
-                                offlineComm.changeGrpcPort(Random.nextInt(10000, 30000))
+                                grpcPortText.toIntOrNull()?.let { port ->
+                                    offlineComm.changeGrpcPort(port)
+                                }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5722))
                         ) {
-                            Text("Change GRPC Port", color = Color.White)
+                            Text("Set gRPC", color = Color.White)
                         }
                     }
-                    if (isStarted)
-                        ListingView(viewModel)
+
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Broadcast message field
+                        OutlinedTextField(
+                            value = broadCastMessage,
+                            onValueChange = { value ->
+                                if (value.all { it.isDigit() }) {
+                                    broadCastMessage = value
+                                }
+                            },
+                            label = { Text("Broadcast Message") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Text
+                            ),
+                            modifier = Modifier.fillMaxWidth(0.7f)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Button(
+                            onClick = {
+                                offlineComm.sendMessageBroadcast(
+                                    targets = null,
+                                    message = Message(
+                                        messageId = Calendar.getInstance().timeInMillis,
+                                        senderId = Utils.getDeviceIpAddress() ?: "",
+                                        receiverId = "Broadcast",
+                                        content = broadCastMessage,
+                                        timestamp = Calendar.getInstance().timeInMillis,
+                                        status = false,
+                                        type = "BROADCAST"
+                                    ),
+                                    maxConcurrency = 10
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF056C9B))
+                        ) {
+                            Text("Send", color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    ListingView(viewModel)
                 }
             }
             Card(
@@ -269,24 +340,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startDiscovery() {
-        offlineComm.startDiscovery(events = grpcEvents, provider = null)
-    }
-
     private fun startSyncService() {
-        offlineComm.startService(
-            context = application,
+        offlineComm.startServiceOnCustomMode(
             udpPort = 35353,
             grpcPort = 35354,
             broadcastIntervalMs = 2000L,
             deviceTimeoutMs = 5000L,
             deleteDeviceOnTimeout = false,
-            printLog = false
+            printLog = true,
+            events = grpcEvents, provider = object : ChatResponseProvider {
+                override suspend fun onMessageReceived(request: ChatRequest): MessageResponse {
+                    // For now just acknowledge that we received the message.
+                    // delay(5000L)
+                    Log.e("onMessageReceived: ", "Message received from $request")
+                    return MessageResponse(
+                        received = true,
+                        info = "Ack from Main Activity",
+                        type = "SINGLE"
+                    )
+                }
+            }
         )
     }
 
     private fun stopSyncService() {
-        offlineComm.stopService(application)
+        offlineComm.stopService()
     }
 
     @Composable
@@ -437,7 +515,8 @@ class MainActivity : ComponentActivity() {
             receiverId = deviceEntity.id,
             content = inputText,
             timestamp = Calendar.getInstance().timeInMillis,
-            status = false
+            status = false,
+            type = "SINGLE"
         )
         viewModel.addMessage(message)
         offlineComm.sendMessageWithCallback(
@@ -473,7 +552,8 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 timestamp = time1,
-                status = false
+                status = false,
+                type = "SINGLE"
             )
             viewModel.addMessage(message)
         }

@@ -1,9 +1,10 @@
 package com.hiren.grpcsync.grpc
 
 import com.hiren.grpcsync.db.Message
+import com.hiren.grpcsync.repo.DeviceRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 
-interface GrpcSdk {
+internal interface GrpcSdk {
 
     /* Server lifecycle */
     fun startServer(
@@ -30,9 +31,11 @@ interface GrpcSdk {
     )
 
     /* 3. Broadcast */
-    fun broadcast(
-        devices: List<String>,
-        message: Message
+    fun broadcastFireAndForget(
+        deviceRepository: DeviceRepository,
+        targets: List<Pair<String, Int>>? = null,
+        message: Message,
+        maxConcurrency: Int
     )
 
     /* 4. Stream */

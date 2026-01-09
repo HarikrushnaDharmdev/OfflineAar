@@ -28,4 +28,7 @@ interface DeviceDao {
     @Query("DELETE FROM DEVICEENTITY")
     fun deleteAllDevices()
 
+    @Query("SELECT * FROM DeviceEntity ORDER BY id DESC")
+    fun getAllDevice(): List<DeviceEntity>
+
 }

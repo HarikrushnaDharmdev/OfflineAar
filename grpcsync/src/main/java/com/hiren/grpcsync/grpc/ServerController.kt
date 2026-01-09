@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  * [CoroutineScope] to avoid blocking the caller thread.
  */
 
-class ServerController(
+internal class ServerController(
     private val scope: CoroutineScope
 ) {
 

@@ -1,34 +1,47 @@
 package com.hiren.grpcsync.public_classes
 
-import android.content.Context
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.grpc.ChatResponseProvider
 import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.grpc.GrpcResult
+import com.hiren.grpcsync.utils.Constants
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 interface OfflineComm {
 
-    fun startService(
-        context: Context,
-        udpPort: Int = 10080,
-        grpcPort: Int = 50051,
-        broadcastIntervalMs: Long = 3000L,
-        deviceTimeoutMs: Long = 10000L,
+    fun startServiceOnCustomMode(
+        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
+        broadcastIntervalMs: Long = Constants.DEFAULT_BROADCAST_INTERVAL,
+        deviceTimeoutMs: Long = Constants.DEFAULT_DEVICE_TIMEOUT,
         deleteDeviceOnTimeout: Boolean = false,
-        printLog: Boolean = true
-    )
-
-    fun stopService(context: Context)
-
-    fun startDiscovery(
+        printLog: Boolean = Constants.PRINT_LOG,
+        responseTimeout: Long = Constants.RESPONSE_TIMEOUT_MS,
+        maxBroadcastDevicesConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
+        cleanUpTimeoutDelay: Long = 2500L,
         provider: ChatResponseProvider?,
         events: MutableSharedFlow<GrpcEvent>?
     )
 
-    fun stopDiscovery()
+    fun startServiceOnBoosterMode(
+        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
+        printLog: Boolean = Constants.PRINT_LOG,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    )
+
+    fun startServiceOnEnergySaving(
+        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
+        printLog: Boolean = Constants.PRINT_LOG,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    )
+
+    fun stopService()
 
     fun sendMessage(ip: String, port: Int, payload: Message)
 
@@ -39,7 +52,11 @@ interface OfflineComm {
         callback: (GrpcResult) -> Unit
     )
 
-    fun broadcast(devices: List<String>, payload: Message)
+    fun sendMessageBroadcast(
+        targets: List<Pair<String, Int>>? = null,
+        message: Message,
+        maxConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY
+    )
 
     fun getDevices(): Flow<List<DeviceEntity>>
     fun changeUdpPort(port: Int)

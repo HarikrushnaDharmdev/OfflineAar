@@ -9,8 +9,10 @@ data class Message(
     val receiverId: String, // Receiver device IP
     val content: String, // Actual Message content
     val timestamp: Long, // Time when the message was sent
-    val status: Boolean // e.g., "sent", "delivered", "read"
+    val status: Boolean, // e.g., "sent", "delivered", "read"
+    val type: String // Message type such as "EDIT", "ADD", "DELETE"
 ) {
+
     fun toGrpcRequest(): ChatRequest {
         return ChatRequest.newBuilder()
             .setMessageId(messageId)
@@ -19,6 +21,7 @@ data class Message(
             .setContent(content)
             .setTimestamp(timestamp)
             .setStatus(status)
+            .setType(type)
             .build()
     }
 }
@@ -26,11 +29,13 @@ data class Message(
 data class MessageResponse(
     val received: Boolean,
     val info: String,
+    val type: String // Message type such as "EDIT", "ADD", "DELETE"
 ) {
     fun toGrpcRequest(): ChatResponse {
         return ChatResponse.newBuilder()
             .setReceived(received)
             .setInfo(info)
+            .setType(type)
             .build()
     }
 }

@@ -2,6 +2,8 @@ package com.hiren.grpcsync.grpc
 
 import com.hiren.grpcsync.ChatServiceGrpcKt
 import com.hiren.grpcsync.db.Message
+import com.hiren.grpcsync.repo.DeviceRepository
+import com.hiren.grpcsync.utils.Utils.eventLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -9,14 +11,25 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
-class GrpcSdkImpl(
-    private val serviceScope: CoroutineScope
+internal class GrpcSdkImpl(
+    private val serviceScope: CoroutineScope,
 ) : GrpcSdk {
 
-    private val channelPool = ChannelPool()
-    private val serverController = ServerController(serviceScope)
-    private val streamManager = StreamManager(serviceScope, channelPool)
-    private val broadcastLimiter = Semaphore(10)
+    private val serverController by lazy {
+        ServerController(serviceScope)
+    }
+
+    // For Bidirectional streaming --------------
+
+    private val channelPool by lazy {
+        ChannelPool()
+    }
+
+    private val streamManager by lazy {
+        StreamManager(serviceScope, channelPool)
+    }
+
+    // -----------------------------------------
 
     private var responseProvider: ChatResponseProvider? = null
     private var events: MutableSharedFlow<GrpcEvent>? = null
@@ -28,6 +41,11 @@ class GrpcSdkImpl(
     ) {
         this.responseProvider = provider
         this.events = events
+
+        eventLog(
+            "GrpcSdkImpl",
+            "startServer with port: $startPort, provider: $provider, events: $events"
+        )
 
         serverController.start(
             port = startPort,
@@ -41,10 +59,18 @@ class GrpcSdkImpl(
     }
 
     override fun stopServer() {
+        eventLog(
+            "GrpcSdkImpl",
+            "stopServer called"
+        )
         serverController.stop(events)
     }
 
     override fun sendMessage(ip: String, port: Int, message: Message) {
+        eventLog(
+            "GrpcSdkImpl",
+            "sendMessage to $ip:$port with message: $message"
+        )
         serviceScope.launch {
             try {
                 val channel = channelPool.get(ip, port)
@@ -62,6 +88,10 @@ class GrpcSdkImpl(
         message: Message,
         callback: (GrpcResult) -> Unit
     ) {
+        eventLog(
+            "GrpcSdkImpl",
+            "sendMessageWithCallback to $ip:$port with message: $message"
+        )
         serviceScope.launch {
             try {
                 val channel = channelPool.get(ip, port)
@@ -75,11 +105,37 @@ class GrpcSdkImpl(
         }
     }
 
-    override fun broadcast(devices: List<String>, message: Message) {
-        devices.forEach { ip ->
-            serviceScope.launch {
-                broadcastLimiter.withPermit {
-                    sendMessage(ip, 50051, message)
+    override fun broadcastFireAndForget(
+        deviceRepository: DeviceRepository,
+        targets: List<Pair<String, Int>>?,
+        message: Message,
+        maxConcurrency: Int
+    ) {
+        eventLog(
+            "GrpcSdkImpl",
+            "broadcastFireAndForget to targets: $targets with message: $message and maxConcurrency: $maxConcurrency"
+        )
+
+        val semaphore = Semaphore(maxConcurrency)
+
+        serviceScope.launch {
+            val devices = if (targets.isNullOrEmpty()) {
+                deviceRepository.getAllDevices().map { it.id to it.port }
+            } else {
+                targets
+            }
+            devices.forEach { (ip, port) ->
+                launch {
+                    semaphore.withPermit {
+                        try {
+                            val channel = channelPool.get(ip, port)
+                            val stub =
+                                ChatServiceGrpcKt.ChatServiceCoroutineStub(channel)
+
+                            stub.getChat(message.toGrpcRequest())
+                        } catch (_: Exception) {
+                        }
+                    }
                 }
             }
         }
@@ -93,12 +149,20 @@ class GrpcSdkImpl(
     }
 
     override fun shutdown() {
+        eventLog(
+            "GrpcSdkImpl",
+            "shutdown called"
+        )
         stopServer()
         channelPool.shutdownAll()
         serviceScope.cancel()
     }
 
     override fun restartServer(port: Int) {
+        eventLog(
+            "GrpcSdkImpl",
+            "restartServer called with port: $port"
+        )
         channelPool.shutdownAll()
         serverController.restart(
             port, events = events,

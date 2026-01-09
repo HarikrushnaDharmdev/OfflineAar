@@ -8,7 +8,11 @@ import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.grpc.ChatResponseProvider
 import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.grpc.GrpcResult
+import com.hiren.grpcsync.grpc.ServiceBus
+import com.hiren.grpcsync.grpc.ServiceEvent
+import com.hiren.grpcsync.repo.DeviceRepository
 import com.hiren.grpcsync.service.OfflineSyncService
+import com.hiren.grpcsync.service.UDPDiscoveryService
 import com.hiren.grpcsync.utils.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -18,70 +22,88 @@ import javax.inject.Singleton
 
 @Singleton
 class OfflineCommImpl @Inject constructor(
+    private val deviceRepository: DeviceRepository,
     @ApplicationContext private val context: Context
 ) : OfflineComm {
 
-    /*init {
-        DevicePublic.init(context)
-    }*/
-
-    /*companion object {
-        @Volatile
-        private var instance: OfflineCommImpl? = null
-
-        fun getInstance(context: Context): OfflineCommImpl =
-            instance ?: synchronized(this) {
-                instance ?: OfflineCommImpl().also {
-                    instance = it
-                    DevicePublic.init(context)
-                }
-            }
-    }*/
-
-    override fun startService(
-        context: Context,
+    override fun startServiceOnCustomMode(
         udpPort: Int,
         grpcPort: Int,
         broadcastIntervalMs: Long,
         deviceTimeoutMs: Long,
         deleteDeviceOnTimeout: Boolean,
-        printLog: Boolean
-    ) {
-        val intent = Intent(context, OfflineSyncService::class.java)
-            .apply {
-                putExtra(Constants.EXTRA_UDP_PORT, udpPort)
-                putExtra(Constants.EXTRA_GRPC_PORT, grpcPort)
-                putExtra(Constants.EXTRA_BROADCAST_INTERVAL, broadcastIntervalMs)
-                putExtra(Constants.EXTRA_DEVICE_TIMEOUT, deviceTimeoutMs)
-                putExtra(Constants.EXTRA_DELETE_ON_TIMEOUT, deleteDeviceOnTimeout)
-                putExtra(Constants.EXTRA_PRINT_LOG, printLog)
-            }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
-    }
-
-    override fun stopService(context: Context) {
-        context.stopService(Intent(context, OfflineSyncService::class.java))
-    }
-
-    override fun startDiscovery(
+        printLog: Boolean,
+        responseTimeout: Long,
+        maxBroadcastDevicesConcurrency: Int,
+        cleanUpTimeoutDelay: Long,
         provider: ChatResponseProvider?,
         events: MutableSharedFlow<GrpcEvent>?
     ) {
-        ServiceBus.post(
-            ServiceEvent.StartDiscovery(
-                provider = provider,
-                events = events
-            )
+        Constants.RESPONSE_TIMEOUT_MS = responseTimeout
+        Constants.MAX_BROADCAST_DEVICES_CONCURRENCY = maxBroadcastDevicesConcurrency
+        Constants.PRINT_LOG = printLog
+
+        startSyncService(
+            udpPort = udpPort,
+            grpcPort = grpcPort,
+            broadcastIntervalMs = broadcastIntervalMs,
+            deviceTimeoutMs = deviceTimeoutMs,
+            cleanUpTimeoutDelay = cleanUpTimeoutDelay,
+            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
+            provider = provider,
+            events = events
         )
     }
 
-    override fun stopDiscovery(
+    override fun startServiceOnBoosterMode(
+        udpPort: Int,
+        grpcPort: Int,
+        printLog: Boolean,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
     ) {
+        Constants.PRINT_LOG = printLog
+
+        startSyncService(
+            udpPort = udpPort,
+            grpcPort = grpcPort,
+            broadcastIntervalMs = 2000L,
+            deviceTimeoutMs = 5000L,
+            cleanUpTimeoutDelay = 2000L,
+            deleteDeviceOnTimeout = false,
+            provider = provider,
+            events = events
+        )
+    }
+
+    override fun startServiceOnEnergySaving(
+        udpPort: Int,
+        grpcPort: Int,
+        printLog: Boolean,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    ) {
+        Constants.PRINT_LOG = printLog
+
+        startSyncService(
+            udpPort = udpPort,
+            grpcPort = grpcPort,
+            broadcastIntervalMs = 10000L,
+            deviceTimeoutMs = 11000L,
+            deleteDeviceOnTimeout = true,
+            cleanUpTimeoutDelay = 10000L,
+            provider = provider,
+            events = events
+        )
+    }
+
+    override fun stopService() {
+        startService(
+            Intent(
+                context,
+                UDPDiscoveryService::class.java
+            ).apply { putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_STOP) }
+        )
         ServiceBus.post(ServiceEvent.StopDiscovery)
     }
 
@@ -105,21 +127,94 @@ class OfflineCommImpl @Inject constructor(
         )
     }
 
-    override fun broadcast(devices: List<String>, payload: Message) {
+    override fun sendMessageBroadcast(
+        targets: List<Pair<String, Int>>?,
+        message: Message,
+        maxConcurrency: Int
+    ) {
         ServiceBus.post(
-            ServiceEvent.Broadcast(devices, payload)
+            ServiceEvent.BroadcastFireAndForget(
+                targets = targets,
+                message = message,
+                maxConcurrency = maxConcurrency
+            )
         )
     }
 
     override fun getDevices(): Flow<List<DeviceEntity>> {
-        return DevicePublic.deviceRepository.observeDevices()
+        return deviceRepository.observeDevices()
     }
 
     override fun changeUdpPort(port: Int) {
-        ServiceBus.post(ServiceEvent.ChangeUdpPort(port))
+        startService(
+            Intent(
+                context,
+                UDPDiscoveryService::class.java
+            ).apply {
+                putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_CHANGE_UDP_PORT)
+                putExtra(Constants.EXTRA_UDP_PORT, port)
+            }
+        )
     }
 
     override fun changeGrpcPort(port: Int) {
+        startService(
+            Intent(
+                context,
+                UDPDiscoveryService::class.java
+            ).apply {
+                putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_CHANGE_GRPC_PORT)
+                putExtra(Constants.EXTRA_GRPC_PORT, port)
+            }
+        )
         ServiceBus.post(ServiceEvent.ChangeGrpcPort(port))
+    }
+
+    fun startSyncService(
+        udpPort: Int,
+        grpcPort: Int,
+        broadcastIntervalMs: Long,
+        deviceTimeoutMs: Long,
+        cleanUpTimeoutDelay: Long,
+        deleteDeviceOnTimeout: Boolean,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    ) {
+        // Start the OfflineSyncService with the provided configurations
+        startService(
+            Intent(context, OfflineSyncService::class.java)
+                .apply { putExtra(Constants.EXTRA_GRPC_PORT, grpcPort) }
+        )
+
+        // Start UDP Discovery Service with the provided configurations
+        startService(
+            Intent(context, UDPDiscoveryService::class.java)
+                .apply {
+                    putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_START)
+                    putExtra(Constants.EXTRA_UDP_PORT, udpPort)
+                    putExtra(Constants.EXTRA_GRPC_PORT, grpcPort)
+                    putExtra(Constants.EXTRA_BROADCAST_INTERVAL, broadcastIntervalMs)
+                    putExtra(Constants.EXTRA_DEVICE_TIMEOUT, deviceTimeoutMs)
+                    putExtra(Constants.EXTRA_DELETE_ON_TIMEOUT, deleteDeviceOnTimeout)
+                    putExtra(Constants.EXTRA_PRINT_LOG, Constants.PRINT_LOG)
+                    putExtra(Constants.EXTRA_CLEANUP_TIME_DELAY, cleanUpTimeoutDelay)
+                }
+        )
+
+        ServiceBus.post(
+            ServiceEvent.StartDiscovery(
+                grpcPort = grpcPort,
+                provider = provider,
+                events = events
+            )
+        )
+    }
+
+    fun startService(intent: Intent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
     }
 }
