@@ -23,11 +23,11 @@ class DeviceViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository
 ) : ViewModel() {
 
-    private val _messages = MutableStateFlow<ArrayList<Message>>(arrayListOf())
-    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
+    private val _messages = MutableStateFlow<ArrayList<String>>(arrayListOf())
+    val messages: StateFlow<List<String>> = _messages.asStateFlow()
 
-    fun addMessage(device: Message) {
-        _messages.value.add(device)
+    fun addMessage(message: String) {
+        _messages.value.add(message)
     }
 
     fun clearMessages() {
@@ -42,17 +42,17 @@ class DeviceViewModel @Inject constructor(
         lastSeen = 12451254L,
     )
 
-    val devices by lazy {
-        deviceRepository.observeDevices()
-            .map { deviceList ->
-                val others = deviceList.filterNot { it.id == defaultDevice.id }
-                listOf(defaultDevice) + others
-            }.stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                emptyList()
-            )
-    }
+  val devices: StateFlow<List<DeviceEntity>> =
+    deviceRepository.observeDevices()
+        .map { deviceList ->
+            val others = deviceList.filterNot { it.id == defaultDevice.id }
+            listOf(defaultDevice) + others
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
     // Selected Device state
     private val _selectedDevice = MutableStateFlow<DeviceEntity?>(null)

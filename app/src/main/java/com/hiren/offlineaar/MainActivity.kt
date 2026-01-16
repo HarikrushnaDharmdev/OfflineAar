@@ -1,8 +1,6 @@
 package com.hiren.offlineaar
 
-import android.graphics.BitmapFactory
 import android.os.Bundle
-import android.util.Base64
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,7 +8,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,9 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -55,9 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +58,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.hiren.grpcsync.ChatRequest
 import com.hiren.grpcsync.db.DeviceEntity
@@ -98,33 +92,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        startSyncService()
         enableEdgeToEdge()
         setContent {
             OfflineAarTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainPage(innerPadding)
-                }
-            }
-        }
-
-        lifecycleScope.launch {
-            grpcEvents.collect { event ->
-                when (event) {
-                    is GrpcEvent.ServerStarted ->
-                        Log.d("GRPC ->>>>>>", "Server started on ${event.port}")
-
-                    is GrpcEvent.ServerStopped ->
-                        Log.d("GRPC ->>>>>>", "Server Stopped")
-
-                    is GrpcEvent.MessageReceived ->
-                        Log.d("GRPC ->>>>>>", "From ${event.from}: ${event.message}")
-
-                    is GrpcEvent.MessageSent ->
-                        Log.d("GRPC ->>>>>>", "Sent to ${event.to}")
-
-                    is GrpcEvent.Error ->
-                        Log.e("GRPC ->>>>>>", "Error ${event.target}", event.throwable)
                 }
             }
         }
@@ -146,6 +119,8 @@ class MainActivity : ComponentActivity() {
         var grpcPortText by remember { mutableStateOf("") }
         var broadCastMessage by remember { mutableStateOf("") }
 
+        val messages by viewModel.messages.collectAsState()
+
         Row(
             modifier = Modifier
                 .padding(innerPadding)
@@ -164,7 +139,7 @@ class MainActivity : ComponentActivity() {
                     Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
                         Button(
                             onClick = {
-                                startSyncService()
+                                startDiscoveryService()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                         ) {
@@ -185,6 +160,7 @@ class MainActivity : ComponentActivity() {
 
                         Button(
                             onClick = {
+                                viewModel.clearMessages()
                                 viewModel.deleteAllDevices()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF000000))
@@ -316,7 +292,7 @@ class MainActivity : ComponentActivity() {
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 selectedUser?.let { device ->
-                    ChatView(deviceEntity = device)
+                    ChatView(deviceEntity = device, messages)
                 } ?: run {
                     Box(
                         modifier = Modifier
@@ -347,20 +323,60 @@ class MainActivity : ComponentActivity() {
             broadcastIntervalMs = 2000L,
             deviceTimeoutMs = 5000L,
             deleteDeviceOnTimeout = false,
-            printLog = true,
-            events = grpcEvents, provider = object : ChatResponseProvider {
-                override suspend fun onMessageReceived(request: ChatRequest): MessageResponse {
-                    // For now just acknowledge that we received the message.
-                    // delay(5000L)
-                    Log.e("onMessageReceived: ", "Message received from $request")
-                    return MessageResponse(
-                        received = true,
-                        info = "Ack from Main Activity",
-                        type = "SINGLE"
-                    )
+            printLog = true
+        )
+    }
+
+    private fun startDiscoveryService() {
+        offlineComm.startDiscovery(
+            grpcPort = 35354,
+            events = grpcEvents,
+            provider = responseProvider
+        )
+
+        lifecycleScope.launch {
+            grpcEvents.collect { event ->
+                when (event) {
+                    is GrpcEvent.ServerStarted -> {
+                        Log.d("GRPC ->>>>>>", "Server started on ${event.port}")
+                        viewModel.addMessage("Server started on ${event.port}")
+                    }
+
+                    is GrpcEvent.ServerStopped -> {
+                        Log.d("GRPC ->>>>>>", "Server Stopped")
+                        viewModel.addMessage("Server Stopped")
+                    }
+
+                    is GrpcEvent.MessageReceived -> {
+                        Log.d("GRPC ->>>>>>", "From ${event.from}: ${event.message}")
+                        viewModel.addMessage("From ${event.from}: ${event.message}")
+                    }
+
+                    is GrpcEvent.MessageSent -> {
+                        Log.d("GRPC ->>>>>>", "Sent to ${event.to}")
+                        viewModel.addMessage("Sent to ${event.to}")
+                    }
+
+                    is GrpcEvent.Error -> {
+                        Log.e("GRPC ->>>>>>", "Error ${event.target}", event.throwable)
+                        viewModel.addMessage("Error ${event.target}, ${event.throwable}")
+                    }
                 }
             }
-        )
+        }
+    }
+
+    private val responseProvider = object : ChatResponseProvider {
+        override suspend fun onMessageReceived(request: ChatRequest): MessageResponse {
+            // For now just acknowledge that we received the message.
+            Log.e("onMessageReceived: ", "Message received from $request")
+            viewModel.addMessage("Message Received and awaiting for response : $request")
+            return MessageResponse(
+                received = true,
+                info = "Ack from Main Activity",
+                type = "SINGLE"
+            )
+        }
     }
 
     private fun stopSyncService() {
@@ -368,8 +384,15 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun ChatView(deviceEntity: DeviceEntity) {
+    fun ChatView(deviceEntity: DeviceEntity, messages: List<String>) {
         val keyboardController = LocalSoftwareKeyboardController.current
+
+        val listState = rememberLazyListState()
+        LaunchedEffect(messages.size) {
+            if (messages.isNotEmpty()) {
+                listState.animateScrollToItem(messages.size - 1)
+            }
+        }
 
         val imagePickerLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.GetContent()
@@ -385,15 +408,6 @@ class MainActivity : ComponentActivity() {
         }
 
         var inputText by remember { mutableStateOf("") }
-        val listState = rememberLazyListState()
-
-        val messages by viewModel.messages.collectAsState()
-
-        LaunchedEffect(messages.size) {
-            if (messages.isNotEmpty()) {
-                listState.animateScrollToItem(messages.size - 1)
-            }
-        }
 
         Column {
             Row(
@@ -518,120 +532,119 @@ class MainActivity : ComponentActivity() {
             status = false,
             type = "SINGLE"
         )
-        viewModel.addMessage(message)
+        viewModel.addMessage("Sent Single message to ${deviceEntity.id}: $inputText")
         offlineComm.sendMessageWithCallback(
             ip = deviceEntity.id,
             port = deviceEntity.port,
             payload = message
         ) { result ->
-            val time1 = Calendar.getInstance().timeInMillis
-            val message = Message(
-                messageId = time1,
-                senderId = deviceEntity.id,
-                receiverId = Utils.getDeviceIpAddress() ?: "",
-                content = when (result) {
-                    is GrpcResult.Success -> {
-                        Log.e("sendSingleMessage: ", "RESPONSE SUCCESS : $result")
-                        "Response: true"
-                    }
+            when (result) {
+                is GrpcResult.Success -> {
+                    viewModel.addMessage("Sent Single message to ${deviceEntity.id}: $inputText -> RESPONSE SUCCESS : $result")
+                    Log.e("sendSingleMessage: ", "RESPONSE SUCCESS : $result")
+                }
 
-                    is GrpcResult.Error -> {
-                        Log.e(
-                            "sendSingleMessage: ",
-                            "RESPONSE ERROR : ${result.throwable.localizedMessage}"
-                        )
-                        "Error: ${result.throwable.localizedMessage}"
-                    }
+                is GrpcResult.Error -> {
+                    viewModel.addMessage("Sent Single message to ${deviceEntity.id}: $inputText -> RESPONSE ERROR : ${result.throwable.localizedMessage}")
+                    Log.e(
+                        "sendSingleMessage: ",
+                        "RESPONSE ERROR : ${result.throwable.localizedMessage}"
+                    )
+                }
 
-                    is GrpcResult.Timeout -> {
-                        Log.e(
-                            "sendSingleMessage: ",
-                            "GrpcResult.Timeout -> No response from ${result.ip}"
-                        )
+                is GrpcResult.Timeout -> {
+                    viewModel.addMessage("Sent Single message to ${deviceEntity.id}: $inputText -> No response from ${result.ip}")
+                    Log.e(
+                        "sendSingleMessage: ",
                         "GrpcResult.Timeout -> No response from ${result.ip}"
-                    }
-                },
-                timestamp = time1,
-                status = false,
-                type = "SINGLE"
-            )
-            viewModel.addMessage(message)
+                    )
+                }
+            }
         }
     }
+
 
     @Composable
     fun ListingView(viewModel: DeviceViewModel) {
-        val thisIp = Utils.getDeviceIpAddress()
-        val devices by viewModel.devices.collectAsState()
+        val devices by viewModel.devices.collectAsStateWithLifecycle()
 
         LazyColumn(modifier = Modifier.padding(10.dp)) {
-            items(devices) { device ->
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFFE0F7FA) // Light cyan
-                    ),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = 8.dp
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .fillMaxWidth()
-                        .clickable {
-                            openChatOfDevice(device)
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(15.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+            items(
+                items = devices,
+                key = { it.id } // VERY IMPORTANT
+            ) { device ->
+                DeviceRow(device)
+            }
+        }
+    }
 
-                        if (device.name == "Broadcast Message") {
-                            Text(
-                                device.name,
-                                style = TextStyle(
-                                    color = Color.Black,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 20.sp
-                                )
+    @Composable
+    fun DeviceRow(device: DeviceEntity) {
+        val thisIp = Utils.getDeviceIpAddress()
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = Color(0xFFE0F7FA) // Light cyan
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 8.dp
+            ),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .padding(8.dp)
+                .fillMaxWidth()
+                .clickable {
+                    openChatOfDevice(device)
+                }
+        ) {
+            Row(
+                modifier = Modifier.padding(15.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                if (device.name == "Broadcast Message") {
+                    Text(
+                        device.name,
+                        style = TextStyle(
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        )
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(15.dp)
+                            .background(
+                                color = if (device.status) Color.Green else Color.Red,
+                                shape = CircleShape
                             )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .size(15.dp)
-                                    .background(
-                                        color = if (device.status) Color.Green else Color.Red,
-                                        shape = CircleShape
-                                    )
+                    )
+                    Spacer(modifier = Modifier.width(15.dp))
+                    Column {
+                        Text(
+                            "${device.id} ${if (device.id == thisIp) "( This Device )" else ""}",
+                            style = TextStyle(
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
                             )
-                            Spacer(modifier = Modifier.width(15.dp))
-                            Column {
-                                Text(
-                                    "${device.id} ${if (device.id == thisIp) "( This Device )" else ""}",
-                                    style = TextStyle(
-                                        color = Color.Black,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 20.sp
-                                    )
-                                )
-                                Text(
-                                    device.name,
-                                    style = TextStyle(
-                                        color = Color.Black.copy(alpha = 0.5f),
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 14.sp
-                                    )
-                                )
-                                Text(
-                                    "Grpc Port : ${device.port}",
-                                    style = TextStyle(
-                                        color = Color.Black.copy(alpha = 0.5f),
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 14.sp
-                                    )
-                                )
-                            }
-                        }
+                        )
+                        Text(
+                            device.name,
+                            style = TextStyle(
+                                color = Color.Black.copy(alpha = 0.5f),
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                        )
+                        Text(
+                            "Grpc Port : ${device.port}",
+                            style = TextStyle(
+                                color = Color.Black.copy(alpha = 0.5f),
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                        )
                     }
                 }
             }
@@ -639,126 +652,21 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun MessageItem(message: Message) {
-        val isUser = message.senderId == Utils.getDeviceIpAddress()
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+    fun MessageItem(message: String) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp, horizontal = 8.dp),
+            shape = RoundedCornerShape(8.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
-            if (!isUser) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFE0E0E0)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Bot",
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-
-            Column(
-                horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
-                modifier = Modifier.widthIn(max = 280.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isUser) 16.dp else 4.dp,
-                        bottomEnd = if (isUser) 4.dp else 16.dp
-                    ),
-                    color = if (isUser) Color(0xFF056C9B) else Color.White,
-                    shadowElevation = 2.dp
-                ) {
-
-                    if (message.content.startsWith("content://") ||
-                        message.content.startsWith("file://") ||
-                        message.content.startsWith("http://") ||
-                        message.content.startsWith("https://")
-                    ) {
-                        /*AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(message.content)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = "Image",
-                            modifier = Modifier
-                                .sizeIn(maxWidth = 240.dp, maxHeight = 300.dp)
-                                .padding(6.dp),
-                            contentScale = ContentScale.FillWidth
-                        )*/
-
-                    } else if (message.content.startsWith("data:image")) {
-
-                        // Extract Base64
-                        val base64Data = message.content.substringAfter("base64,")
-
-                        // Convert to Bitmap
-                        val bitmap = remember(base64Data) {
-                            try {
-                                val bytes = Base64.decode(base64Data, Base64.DEFAULT)
-                                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                                null
-                            }
-                        }
-
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = "Image message",
-                                modifier = Modifier
-                                    .sizeIn(maxWidth = 240.dp, maxHeight = 300.dp)
-                                    .padding(6.dp)
-                            )
-                        } else {
-                            Text(
-                                text = "Invalid Image",
-                                modifier = Modifier.padding(12.dp),
-                                color = Color.Red
-                            )
-                        }
-
-                    } else {
-                        // Normal Text Message
-                        Text(
-                            text = message.content,
-                            modifier = Modifier.padding(12.dp),
-                            color = if (isUser) Color.White else Color(0xFF212121),
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-                Text(
-                    text = Utils.formatTimestamp(message.timestamp),
-                    fontSize = 11.sp,
-                    color = Color(0xFF9E9E9E),
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
-
-            if (isUser) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF056C9B)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "USER",
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
+            Text(
+                text = message,
+                modifier = Modifier.padding(16.dp),
+                color = Color.Black,
+                fontSize = 16.sp
+            )
         }
     }
 

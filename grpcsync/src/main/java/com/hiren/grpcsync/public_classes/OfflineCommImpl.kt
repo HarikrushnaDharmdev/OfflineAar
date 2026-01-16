@@ -35,9 +35,7 @@ class OfflineCommImpl @Inject constructor(
         printLog: Boolean,
         responseTimeout: Long,
         maxBroadcastDevicesConcurrency: Int,
-        cleanUpTimeoutDelay: Long,
-        provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
+        cleanUpTimeoutDelay: Long
     ) {
         Constants.RESPONSE_TIMEOUT_MS = responseTimeout
         Constants.MAX_BROADCAST_DEVICES_CONCURRENCY = maxBroadcastDevicesConcurrency
@@ -49,18 +47,14 @@ class OfflineCommImpl @Inject constructor(
             broadcastIntervalMs = broadcastIntervalMs,
             deviceTimeoutMs = deviceTimeoutMs,
             cleanUpTimeoutDelay = cleanUpTimeoutDelay,
-            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
-            provider = provider,
-            events = events
+            deleteDeviceOnTimeout = deleteDeviceOnTimeout
         )
     }
 
     override fun startServiceOnBoosterMode(
         udpPort: Int,
         grpcPort: Int,
-        printLog: Boolean,
-        provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
+        printLog: Boolean
     ) {
         Constants.PRINT_LOG = printLog
 
@@ -70,18 +64,14 @@ class OfflineCommImpl @Inject constructor(
             broadcastIntervalMs = 2000L,
             deviceTimeoutMs = 5000L,
             cleanUpTimeoutDelay = 2000L,
-            deleteDeviceOnTimeout = false,
-            provider = provider,
-            events = events
+            deleteDeviceOnTimeout = false
         )
     }
 
     override fun startServiceOnEnergySaving(
         udpPort: Int,
         grpcPort: Int,
-        printLog: Boolean,
-        provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
+        printLog: Boolean
     ) {
         Constants.PRINT_LOG = printLog
 
@@ -91,9 +81,7 @@ class OfflineCommImpl @Inject constructor(
             broadcastIntervalMs = 10000L,
             deviceTimeoutMs = 11000L,
             deleteDeviceOnTimeout = true,
-            cleanUpTimeoutDelay = 10000L,
-            provider = provider,
-            events = events
+            cleanUpTimeoutDelay = 10000L
         )
     }
 
@@ -176,9 +164,7 @@ class OfflineCommImpl @Inject constructor(
         broadcastIntervalMs: Long,
         deviceTimeoutMs: Long,
         cleanUpTimeoutDelay: Long,
-        deleteDeviceOnTimeout: Boolean,
-        provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
+        deleteDeviceOnTimeout: Boolean
     ) {
         // Start the OfflineSyncService with the provided configurations
         startService(
@@ -200,7 +186,13 @@ class OfflineCommImpl @Inject constructor(
                     putExtra(Constants.EXTRA_CLEANUP_TIME_DELAY, cleanUpTimeoutDelay)
                 }
         )
+    }
 
+    override fun startDiscovery(
+        grpcPort: Int,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
+    ) {
         ServiceBus.post(
             ServiceEvent.StartDiscovery(
                 grpcPort = grpcPort,

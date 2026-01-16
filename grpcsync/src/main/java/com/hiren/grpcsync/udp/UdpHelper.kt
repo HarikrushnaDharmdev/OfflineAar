@@ -316,7 +316,8 @@ class UdpHelper @Inject constructor(
     }
 
     private fun log(msg: String) {
-        if (UDPDiscoveryService.printLog) {
+        //if (UDPDiscoveryService.printLog) {
+        if (false) {
             Log.d("GRPC SYNC ->> UdpHelper", msg)
         }
     }

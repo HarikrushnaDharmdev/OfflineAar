@@ -21,22 +21,22 @@ interface OfflineComm {
         responseTimeout: Long = Constants.RESPONSE_TIMEOUT_MS,
         maxBroadcastDevicesConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
         cleanUpTimeoutDelay: Long = 2500L,
-        provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
     )
 
     fun startServiceOnBoosterMode(
         udpPort: Int = Constants.DEFAULT_UDP_PORT,
         grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
         printLog: Boolean = Constants.PRINT_LOG,
-        provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
     )
 
     fun startServiceOnEnergySaving(
         udpPort: Int = Constants.DEFAULT_UDP_PORT,
         grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
         printLog: Boolean = Constants.PRINT_LOG,
+    )
+
+    fun startDiscovery(
+        grpcPort: Int,
         provider: ChatResponseProvider?,
         events: MutableSharedFlow<GrpcEvent>?
     )

@@ -34,12 +34,13 @@
             android:exported="true"
             android:foregroundServiceType="dataSync|connectedDevice" />
 
+        <!--android:process=":DEVICE_SYNC_SERVICE"-->
         <service
             android:name=".service.UDPDiscoveryService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="dataSync|connectedDevice"
-            android:process=":DEVICE_SYNC_SERVICE" />
+            />
 
     </application>
 
