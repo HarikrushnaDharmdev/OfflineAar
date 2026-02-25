@@ -1,6 +1,6 @@
 package com.hiren.grpcsync.grpc
 
-import com.hiren.grpcsync.ChatRequest
+import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.db.MessageResponse
 
 /**
@@ -20,5 +20,5 @@ interface ChatResponseProvider {
      * @param request Incoming chat request
      * @return ChatResponse to be sent back to the client
      */
-    suspend fun onMessageReceived(request: ChatRequest): MessageResponse
+    suspend fun onMessageReceived(request: Message): MessageResponse
 }

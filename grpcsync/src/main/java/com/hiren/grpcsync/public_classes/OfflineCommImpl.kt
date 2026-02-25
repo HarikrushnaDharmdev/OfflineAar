@@ -121,9 +121,8 @@ class OfflineCommImpl @Inject constructor(
         Constants.MAX_BROADCAST_DEVICES_CONCURRENCY = maxBroadcastDevicesConcurrency
         Constants.PRINT_LOG = printLog
 
-        controller.setOnStarted { isStarted ->
-            if (!isStarted)
-                startDiscovery(grpcPort = grpcPort, provider = provider, events = events)
+        controller.setOnStarted { _ ->
+            startDiscovery(grpcPort = grpcPort, provider = provider, events = events)
         }
 
         startSyncService(

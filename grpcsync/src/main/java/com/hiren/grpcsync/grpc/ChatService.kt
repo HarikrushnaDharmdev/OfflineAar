@@ -82,7 +82,17 @@ internal class ChatService(
             scope.launch {
                 try {
                     val response = withTimeoutOrNull(RESPONSE_TIMEOUT_MS) {
-                        responseProvider.onMessageReceived(request)
+                        responseProvider.onMessageReceived(
+                            Message(
+                                messageId = request.messageId,
+                                senderId = request.senderId,
+                                receiverId = request.receiverId,
+                                content = request.content,
+                                timestamp = request.timestamp,
+                                status = request.status,
+                                type = request.type
+                            )
+                        )
                     }
 
                     if (response != null) {

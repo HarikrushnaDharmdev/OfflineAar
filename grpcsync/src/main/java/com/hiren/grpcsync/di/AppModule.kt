@@ -38,10 +38,11 @@ object AppModule {
     @Singleton
     fun provideOfflineComm(
         @ApplicationContext context: Context,
-        repository: DeviceRepository
+        repository: DeviceRepository,
+        controller: SyncServiceController
     ): OfflineComm =
         OfflineCommImpl(
-            context = context, deviceRepository = repository
+            context = context, deviceRepository = repository, controller = controller
         )
 
     @Singleton
