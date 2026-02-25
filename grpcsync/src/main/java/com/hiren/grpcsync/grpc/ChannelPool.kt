@@ -18,6 +18,9 @@ import java.util.concurrent.ConcurrentHashMap
  * - Reuse channels for multiple gRPC calls to the same device
  * - Maintain long-lived connections for streaming RPCs
  * - Centralized shutdown during SDK or service teardown
+ *
+ *  Created On    : 24-02-2026 |
+ *  Author        : Hiren Patel
  */
 class ChannelPool {
 

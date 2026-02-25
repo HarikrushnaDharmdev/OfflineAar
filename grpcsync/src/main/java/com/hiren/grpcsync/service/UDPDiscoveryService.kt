@@ -73,7 +73,7 @@ class UDPDiscoveryService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
-        startForeground(2, setNotification("Discovering Devices.....", this))
+        startForeground(2, setNotification("Retailz Cloud Sync.....", this))
 
         // Defensive: system restart may deliver null intent
         if (intent == null) return START_STICKY
@@ -142,6 +142,11 @@ class UDPDiscoveryService : LifecycleService() {
                 stopSelf()
             }
 
+            Constants.UDP_STOP_DISCOVERY -> {
+                started.set(false)
+                stopDiscovery()
+            }
+
             Constants.UDP_CHANGE_UDP_PORT -> {
                 val newUdpPort =
                     intent.getIntExtra(
@@ -181,7 +186,7 @@ class UDPDiscoveryService : LifecycleService() {
      *
      * Ensures:
      *  - UDP sockets are closed
-     *  - Coroutines are cancelled
+     *  - Coroutines are canceled
      *  - No background leaks remain
      */
     fun stopDiscovery() {

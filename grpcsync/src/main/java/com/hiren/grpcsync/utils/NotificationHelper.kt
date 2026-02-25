@@ -14,7 +14,7 @@ internal object NotificationHelper {
     fun setNotification(message: String, context: Context): Notification {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Discovering Devices via UDP",
+            "Retailz Cloud Sync.....",
             NotificationManager.IMPORTANCE_LOW
         )
         val notificationManager =
@@ -22,11 +22,10 @@ internal object NotificationHelper {
         notificationManager.createNotificationChannel(channel)
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("Discovering Devices via UDP")
+            .setSmallIcon(R.drawable.ic_cloud_sync)
+            .setContentTitle(message)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setContentText(message)
             .build()
     }
 

@@ -18,6 +18,10 @@ internal object ServiceBus {
     }
 }
 
+interface ServiceStartCallback {
+    fun onServiceStarted()
+}
+
 internal sealed class ServiceEvent {
 
     data class StartDiscovery(

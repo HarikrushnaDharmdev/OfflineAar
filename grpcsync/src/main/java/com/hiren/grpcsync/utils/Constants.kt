@@ -20,6 +20,7 @@ internal object Constants {
     // --------------UDP TYPES--------------
     const val UDP_START = "UDP_START"
     const val UDP_STOP = "UDP_STOP"
+    const val UDP_STOP_DISCOVERY = "UDP_STOP_DISCOVERY"
     const val UDP_CHANGE_UDP_PORT = "UDP_CHANGE_UDP_PORT"
     const val UDP_CHANGE_GRPC_PORT = "UDP_CHANGE_GRPC_PORT"
 

@@ -3,11 +3,11 @@
   <component name="deploymentTargetSelector">
     <selectionStates>
       <SelectionState runConfigName="app">
-        <option name="selectionMode" value="DIALOG" />
-        <DropdownSelection timestamp="2026-01-07T10:30:46.479712Z">
+        <option name="selectionMode" value="DROPDOWN" />
+        <DropdownSelection timestamp="2026-02-24T13:09:14.551076600Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="Default" identifier="serial=192.168.2.42:5555;connection=0fed9588" />
+              <DeviceId pluginId="Default" identifier="serial=192.168.2.50:33671;connection=63416b0f" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -15,12 +15,12 @@
           <targets>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="Default" identifier="serial=192.168.2.66:36331;connection=f0f82c4f" />
+                <DeviceId pluginId="Default" identifier="serial=192.168.2.42:5555;connection=8d2e4fbc" />
               </handle>
             </Target>
             <Target type="DEFAULT_BOOT">
               <handle>
-                <DeviceId pluginId="Default" identifier="serial=192.168.2.50:33483;connection=dbbd3381" />
+                <DeviceId pluginId="Default" identifier="serial=192.168.2.50:33671;connection=63416b0f" />
               </handle>
             </Target>
           </targets>
@@ -36,6 +36,9 @@
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
       <SelectionState runConfigName="offlinesync">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="PreviewMain">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

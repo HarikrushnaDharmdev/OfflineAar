@@ -69,7 +69,6 @@ internal class ServerController(
         }
     }
 
-
     /**
      * Stops the currently running gRPC server (if any) and clears the reference.
      *

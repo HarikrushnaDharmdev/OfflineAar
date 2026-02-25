@@ -281,7 +281,7 @@ class UdpHelper @Inject constructor(
         val message = String(packet.data, 0, packet.length)
         val parts = message.split(",")
 
-        // neglect Strict checking.. as Some devices may send incomplete info
+        // neglect Strict checking as Some devices may send incomplete info
         //if (parts.size != 2) return
 
         val device = DeviceEntity(
@@ -289,7 +289,8 @@ class UdpHelper @Inject constructor(
             name = parts.getOrNull(0) ?: "-",
             port = parts.getOrNull(1)?.toInt() ?: 0,
             status = true,
-            lastSeen = System.currentTimeMillis()
+            lastSeen = System.currentTimeMillis(),
+            note = ""
         )
         log("Broadcast update from device: $device")
 
@@ -316,8 +317,8 @@ class UdpHelper @Inject constructor(
     }
 
     private fun log(msg: String) {
-        //if (UDPDiscoveryService.printLog) {
-        if (false) {
+        if (UDPDiscoveryService.printLog) {
+            //if (false) {
             Log.d("GRPC SYNC ->> UdpHelper", msg)
         }
     }

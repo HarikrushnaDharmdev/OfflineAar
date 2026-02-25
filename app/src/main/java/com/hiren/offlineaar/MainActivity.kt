@@ -167,7 +167,6 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Text("Delete All Devices", color = Color.White)
                         }
-
                     }
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp),
@@ -277,6 +276,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             Text("Send", color = Color.White)
                         }
+
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     ListingView(viewModel)

@@ -40,19 +40,20 @@ class DeviceViewModel @Inject constructor(
         port = 0,
         status = false,
         lastSeen = 12451254L,
+        note = ""
     )
 
-  val devices: StateFlow<List<DeviceEntity>> =
-    deviceRepository.observeDevices()
-        .map { deviceList ->
-            val others = deviceList.filterNot { it.id == defaultDevice.id }
-            listOf(defaultDevice) + others
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = emptyList()
-        )
+    val devices: StateFlow<List<DeviceEntity>> =
+        deviceRepository.observeDevices()
+            .map { deviceList ->
+                val others = deviceList.filterNot { it.id == defaultDevice.id }
+                listOf(defaultDevice) + others
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = emptyList()
+            )
 
     // Selected Device state
     private val _selectedDevice = MutableStateFlow<DeviceEntity?>(null)

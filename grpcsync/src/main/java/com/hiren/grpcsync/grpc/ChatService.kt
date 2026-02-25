@@ -25,6 +25,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  *
  * This class is intended to run inside a long-lived component such as a
  * foreground service.
+ *
+ *  Created On    : 24-02-2026 |
+ *  Author        : Hiren Patel
  */
 internal class ChatService(
     /**

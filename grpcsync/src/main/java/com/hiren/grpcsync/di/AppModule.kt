@@ -8,6 +8,7 @@ import com.hiren.grpcsync.public_classes.OfflineComm
 import com.hiren.grpcsync.public_classes.OfflineCommImpl
 import com.hiren.grpcsync.repo.DeviceRepository
 import com.hiren.grpcsync.repo.DeviceRepositoryImpl
+import com.hiren.grpcsync.service.SyncServiceController
 import com.hiren.grpcsync.udp.UdpHelper
 import com.hiren.grpcsync.utils.Constants
 import dagger.Module
@@ -25,6 +26,12 @@ object AppModule {
     @Provides
     fun provideUdpBroadcastService(deviceDao: DeviceDao): UdpHelper {
         return UdpHelper(deviceDao)
+    }
+
+    @Singleton
+    @Provides
+    fun provideServiceController(): SyncServiceController {
+        return SyncServiceController()
     }
 
     @Provides
@@ -59,6 +66,9 @@ object AppModule {
             context,
             AppDatabase::class.java,
             Constants.DATABASE_NAME
-        ).fallbackToDestructiveMigration().build()
+        )
+            .fallbackToDestructiveMigration()
+            .enableMultiInstanceInvalidation()
+            .build()
     }
 }

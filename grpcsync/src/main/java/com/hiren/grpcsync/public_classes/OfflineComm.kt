@@ -18,21 +18,39 @@ interface OfflineComm {
         deviceTimeoutMs: Long = Constants.DEFAULT_DEVICE_TIMEOUT,
         deleteDeviceOnTimeout: Boolean = false,
         printLog: Boolean = Constants.PRINT_LOG,
+        udpPrintLog: Boolean = Constants.PRINT_LOG,
         responseTimeout: Long = Constants.RESPONSE_TIMEOUT_MS,
         maxBroadcastDevicesConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
         cleanUpTimeoutDelay: Long = 2500L,
+    )
+
+    fun startServiceOnCustomModeWithStartDiscovery(
+        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
+        broadcastIntervalMs: Long = Constants.DEFAULT_BROADCAST_INTERVAL,
+        deviceTimeoutMs: Long = Constants.DEFAULT_DEVICE_TIMEOUT,
+        deleteDeviceOnTimeout: Boolean = false,
+        printLog: Boolean = Constants.PRINT_LOG,
+        udpPrintLog: Boolean = Constants.PRINT_LOG,
+        responseTimeout: Long = Constants.RESPONSE_TIMEOUT_MS,
+        maxBroadcastDevicesConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
+        cleanUpTimeoutDelay: Long = 2500L,
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
     )
 
     fun startServiceOnBoosterMode(
         udpPort: Int = Constants.DEFAULT_UDP_PORT,
         grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
         printLog: Boolean = Constants.PRINT_LOG,
+        udpPrintLog: Boolean = Constants.PRINT_LOG,
     )
 
     fun startServiceOnEnergySaving(
         udpPort: Int = Constants.DEFAULT_UDP_PORT,
         grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
         printLog: Boolean = Constants.PRINT_LOG,
+        udpPrintLog: Boolean = Constants.PRINT_LOG,
     )
 
     fun startDiscovery(
@@ -42,6 +60,8 @@ interface OfflineComm {
     )
 
     fun stopService()
+
+    fun stopDiscovery()
 
     fun sendMessage(ip: String, port: Int, payload: Message)
 

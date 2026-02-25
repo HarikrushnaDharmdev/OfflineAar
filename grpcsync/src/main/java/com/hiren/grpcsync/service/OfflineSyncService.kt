@@ -11,6 +11,7 @@ import com.hiren.grpcsync.grpc.ServiceEvent
 import com.hiren.grpcsync.grpc.ChannelPool
 import com.hiren.grpcsync.grpc.ChatResponseProvider
 import com.hiren.grpcsync.grpc.GrpcEvent
+import com.hiren.grpcsync.grpc.ServiceStartCallback
 import com.hiren.grpcsync.repo.DeviceRepository
 import com.hiren.grpcsync.utils.NotificationHelper.setNotification
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,6 +29,9 @@ class OfflineSyncService : LifecycleService() {
 
     @Inject
     lateinit var deviceRepository: DeviceRepository
+
+    @Inject
+    lateinit var controller: SyncServiceController
 
     private val started by lazy { AtomicBoolean(false) }
 
@@ -47,14 +51,18 @@ class OfflineSyncService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
-        startForeground(2, setNotification("Discovering Devices.....", this))
+        startForeground(2, setNotification("Retailz Cloud Sync.....", this))
 
         // 🔒 Prevent duplicate start
         if (started.getAndSet(true)) {
+            controller.notifyStarted(true)
             return START_STICKY
         }
 
-        if (intent == null) return START_STICKY
+        if (intent == null) {
+            controller.notifyStarted(started.get())
+            return START_STICKY
+        }
 
         lifecycleScope.launch {
             ServiceBus.events.collect { event ->
@@ -70,7 +78,8 @@ class OfflineSyncService : LifecycleService() {
 
                     is ServiceEvent.StopDiscovery -> {
                         Log.d("SyncService", "ServiceEvent.StopDiscovery")
-                        stopServer()
+                        started.set(false)
+                        stopDiscovery()
                     }
 
                     is ServiceEvent.Stop -> {
@@ -119,11 +128,12 @@ class OfflineSyncService : LifecycleService() {
             }
         }
 
+        controller.notifyStarted(started.get())
         return START_STICKY
     }
 
     override fun onDestroy() {
-        stopServer()
+        stopDiscovery()
         grpcManager = null
         serviceScope.cancel()
         started.set(false)
@@ -138,7 +148,7 @@ class OfflineSyncService : LifecycleService() {
         grpcManager?.startServer(grpcPort, provider, events)
     }
 
-    fun stopServer() {
+    fun stopDiscovery() {
         grpcManager?.stopServer()
         ChannelPool().shutdownAll()
     }
