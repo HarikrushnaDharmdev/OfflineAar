@@ -173,4 +173,8 @@ internal class GrpcSdkImpl(
             ),
         )
     }
+
+    override fun serverIsRunning(): Boolean {
+        return serverController.isRunning()
+    }
 }

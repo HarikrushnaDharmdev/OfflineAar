@@ -11,7 +11,6 @@ import com.hiren.grpcsync.grpc.ServiceEvent
 import com.hiren.grpcsync.grpc.ChannelPool
 import com.hiren.grpcsync.grpc.ChatResponseProvider
 import com.hiren.grpcsync.grpc.GrpcEvent
-import com.hiren.grpcsync.grpc.ServiceStartCallback
 import com.hiren.grpcsync.repo.DeviceRepository
 import com.hiren.grpcsync.utils.NotificationHelper.setNotification
 import dagger.hilt.android.AndroidEntryPoint
@@ -41,28 +40,6 @@ class OfflineSyncService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
-    }
-
-    override fun onBind(intent: Intent): IBinder? {
-        super.onBind(intent)
-        return null
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId)
-
-        startForeground(2, setNotification("Retailz Cloud Sync.....", this))
-
-        // 🔒 Prevent duplicate start
-        if (started.getAndSet(true)) {
-            controller.notifyStarted(true)
-            return START_STICKY
-        }
-
-        if (intent == null) {
-            controller.notifyStarted(started.get())
-            return START_STICKY
-        }
 
         lifecycleScope.launch {
             ServiceBus.events.collect { event ->
@@ -126,6 +103,24 @@ class OfflineSyncService : LifecycleService() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onBind(intent: Intent): IBinder? {
+        super.onBind(intent)
+        return null
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+
+        startForeground(2, setNotification("Retailz Cloud Sync.....", this))
+
+        // 🔒 Prevent duplicate start
+        if (grpcManager?.serverIsRunning() ?: false) {
+            Log.d("SyncService", "grpcManager?.serverIsRunning = true, ignoring start command")
+            controller.notifyStarted(true)
+            return START_STICKY
         }
 
         controller.notifyStarted(started.get())

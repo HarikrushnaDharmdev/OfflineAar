@@ -62,6 +62,13 @@ fun NewChatScreen(
     paddingValues: PaddingValues,
     viewModel: NewChatViewModel = hiltViewModel()
 ) {
+
+    val androidId = Settings.Secure.getString(
+        LocalContext.current.contentResolver,
+        Settings.Secure.ANDROID_ID
+    )
+    viewModel.start(androidId)
+
     Row(
         modifier = Modifier
             .padding(paddingValues)

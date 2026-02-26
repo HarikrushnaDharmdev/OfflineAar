@@ -8,7 +8,7 @@ import android.content.Context.NOTIFICATION_SERVICE
 import androidx.core.app.NotificationCompat
 import com.hiren.grpcsync.R
 
-internal object NotificationHelper {
+object NotificationHelper {
     const val CHANNEL_ID = "DEVICE_DISCOVERY_CHANNEL"
 
     fun setNotification(message: String, context: Context): Notification {

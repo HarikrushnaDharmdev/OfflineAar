@@ -48,4 +48,6 @@ internal interface GrpcSdk {
     fun shutdown()
 
     fun restartServer(port: Int)
+
+    fun serverIsRunning(): Boolean
 }

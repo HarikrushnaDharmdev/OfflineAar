@@ -143,4 +143,11 @@ internal class ServerController(
             }
         }
     }
+
+    fun isRunning(): Boolean {
+        if (server != null) {
+            return server?.isTerminated ?: false
+        }
+        return false
+    }
 }
