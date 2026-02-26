@@ -323,7 +323,8 @@ class MainActivity : ComponentActivity() {
             broadcastIntervalMs = 2000L,
             deviceTimeoutMs = 5000L,
             deleteDeviceOnTimeout = false,
-            printLog = true
+            printLog = true,
+            deviceId = ""
         )
     }
 
@@ -367,7 +368,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val responseProvider = object : ChatResponseProvider {
-        override suspend fun onMessageReceived(request: ChatRequest): MessageResponse {
+        override suspend fun onMessageReceived(request: Message): MessageResponse {
             // For now just acknowledge that we received the message.
             Log.e("onMessageReceived: ", "Message received from $request")
             viewModel.addMessage("Message Received and awaiting for response : $request")

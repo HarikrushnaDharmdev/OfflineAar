@@ -123,13 +123,16 @@ class UDPDiscoveryService : LifecycleService() {
                         2500L
                     )
 
+                val deviceId = intent.getStringExtra(Constants.EXTRA_DEVICE_ID) ?: ""
+
                 try {
                     udpHelper.start(
                         udpPort = udpPort,
                         grpcPort = grpcPort,
                         broadcastIntervalMs = broadcastInterval,
                         deviceTimeoutMs = deviceTimeout,
-                        deleteDeviceOnTimeout = deleteOnTimeout
+                        deleteDeviceOnTimeout = deleteOnTimeout,
+                        deviceId = deviceId
                     )
                 } catch (e: Exception) {
                     started.set(false) // rollback on failure

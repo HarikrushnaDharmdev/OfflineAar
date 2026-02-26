@@ -13,6 +13,7 @@ internal object Constants {
     const val EXTRA_DELETE_ON_TIMEOUT = "extra_delete_on_timeout"
     const val EXTRA_PRINT_LOG = "extra_print_log"
     const val EXTRA_CLEANUP_TIME_DELAY = "extra_cleanup_time_delay"
+    const val EXTRA_DEVICE_ID = "extra_device_id"
 
     // --------------Database--------------
     const val DATABASE_NAME = "GRPC_OFFLINE_SYNC_DB"

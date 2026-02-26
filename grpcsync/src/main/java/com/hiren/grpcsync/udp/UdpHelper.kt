@@ -55,6 +55,9 @@ class UdpHelper @Inject constructor(
     /** gRPC server port shared with other devices */
     private var grpcPort = Constants.DEFAULT_GRPC_PORT
 
+    /** DeviceId to be placed in db as well as passed for reference */
+    private var deviceId = ""
+
     /** Interval between UDP broadcast packets (in milliseconds) */
     private var broadcastIntervalMs = Constants.DEFAULT_BROADCAST_INTERVAL
 
@@ -105,7 +108,8 @@ class UdpHelper @Inject constructor(
         grpcPort: Int = 50051,
         broadcastIntervalMs: Long = 3000L,
         deviceTimeoutMs: Long = 10000L,
-        deleteDeviceOnTimeout: Boolean = false
+        deleteDeviceOnTimeout: Boolean = false,
+        deviceId: String
     ) {
         if (running) {
             log("UDP service already running")
@@ -114,6 +118,7 @@ class UdpHelper @Inject constructor(
 
         this.udpPort = udpPort
         this.grpcPort = grpcPort
+        this.deviceId = deviceId
         this.broadcastIntervalMs = broadcastIntervalMs
         this.deviceTimeoutMs = deviceTimeoutMs
         this.deleteDeviceOnTimeout = deleteDeviceOnTimeout
@@ -121,7 +126,7 @@ class UdpHelper @Inject constructor(
         running = true
         serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-        log("UDP discovery started on port $udpPort")
+        log("UDP discovery started on port $udpPort, deiceId: $deviceId")
 
         broadcastJob = serviceScope?.launch { broadcastLoop() }
         listenJob = serviceScope?.launch { listenLoop() }
@@ -193,7 +198,8 @@ class UdpHelper @Inject constructor(
             grpcPort = grpcPort,
             broadcastIntervalMs = broadcastIntervalMs,
             deviceTimeoutMs = deviceTimeoutMs,
-            deleteDeviceOnTimeout = deleteDeviceOnTimeout
+            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
+            deviceId = deviceId
         )
     }
 
@@ -218,8 +224,14 @@ class UdpHelper @Inject constructor(
 
             while (isActive) {
                 try {
-                    val payload = "${Build.MODEL},$grpcPort"
-                    val data = payload.toByteArray()
+                    //val payload = "$deviceId,$grpcPort,${Build.MODEL}"
+                    //val data = payload.toByteArray()
+                    val data = try {
+                        buildSafePayload(deviceId, grpcPort)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        "$deviceId,$grpcPort,${Build.MODEL}".toByteArray()
+                    }
 
                     val packet = DatagramPacket(
                         data,
@@ -228,8 +240,6 @@ class UdpHelper @Inject constructor(
                         udpPort
                     )
                     socket.send(packet)
-
-                    log("Broadcast sent: $payload")
                 } catch (e: Exception) {
                     log("Broadcast error: ${e.message}")
                 }
@@ -237,6 +247,34 @@ class UdpHelper @Inject constructor(
                 delay(broadcastIntervalMs)
             }
         }
+    }
+
+    private fun buildSafePayload(
+        deviceId: String,
+        grpcPort: Int
+    ): ByteArray {
+        val maxUdpPayload = 1024
+
+        val basePart = "$deviceId,$grpcPort,"
+        val baseBytes = basePart.toByteArray()
+
+        val maxModelBytesAllowed = maxUdpPayload - baseBytes.size
+
+        // If base itself exceeds limit (very unlikely)
+        if (maxModelBytesAllowed <= 0) {
+            return baseBytes.take(maxUdpPayload).toByteArray()
+        }
+
+        val modelBytes = Build.MODEL.toByteArray()
+
+        val safeModelBytes =
+            if (modelBytes.size > maxModelBytesAllowed) {
+                modelBytes.copyOf(maxModelBytesAllowed)
+            } else {
+                modelBytes
+            }
+
+        return baseBytes + safeModelBytes
     }
 
     /**
@@ -286,8 +324,9 @@ class UdpHelper @Inject constructor(
 
         val device = DeviceEntity(
             id = packet.address.hostAddress ?: return,
-            name = parts.getOrNull(0) ?: "-",
+            deviceId = parts.getOrNull(0) ?: "",
             port = parts.getOrNull(1)?.toInt() ?: 0,
+            name = parts.getOrNull(2) ?: "-",
             status = true,
             lastSeen = System.currentTimeMillis(),
             note = ""

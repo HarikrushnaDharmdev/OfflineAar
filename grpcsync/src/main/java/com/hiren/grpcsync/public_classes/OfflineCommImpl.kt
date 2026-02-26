@@ -68,7 +68,8 @@ class OfflineCommImpl @Inject constructor(
         udpPrintLog: Boolean,
         responseTimeout: Long,
         maxBroadcastDevicesConcurrency: Int,
-        cleanUpTimeoutDelay: Long
+        cleanUpTimeoutDelay: Long,
+        deviceId: String
     ) {
         require(udpPort in 0..65535) {
             "udpPort must be between 0 and 65535"
@@ -90,7 +91,8 @@ class OfflineCommImpl @Inject constructor(
             broadcastIntervalMs = broadcastIntervalMs,
             deviceTimeoutMs = deviceTimeoutMs,
             cleanUpTimeoutDelay = cleanUpTimeoutDelay,
-            deleteDeviceOnTimeout = deleteDeviceOnTimeout
+            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
+            deviceId = deviceId
         )
     }
 
@@ -106,7 +108,8 @@ class OfflineCommImpl @Inject constructor(
         maxBroadcastDevicesConcurrency: Int,
         cleanUpTimeoutDelay: Long,
         provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
+        events: MutableSharedFlow<GrpcEvent>?,
+        deviceId: String
     ) {
         require(udpPort in 0..65535) {
             "udpPort must be between 0 and 65535"
@@ -132,7 +135,8 @@ class OfflineCommImpl @Inject constructor(
             broadcastIntervalMs = broadcastIntervalMs,
             deviceTimeoutMs = deviceTimeoutMs,
             cleanUpTimeoutDelay = cleanUpTimeoutDelay,
-            deleteDeviceOnTimeout = deleteDeviceOnTimeout
+            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
+            deviceId = deviceId
         )
     }
 
@@ -148,6 +152,7 @@ class OfflineCommImpl @Inject constructor(
         grpcPort: Int,
         printLog: Boolean,
         udpPrintLog: Boolean,
+        deviceId: String
     ) {
         require(udpPort in 0..65535) {
             "udpPort must be between 0 and 65535"
@@ -166,7 +171,8 @@ class OfflineCommImpl @Inject constructor(
             broadcastIntervalMs = 2000L,
             deviceTimeoutMs = 5000L,
             cleanUpTimeoutDelay = 2000L,
-            deleteDeviceOnTimeout = false
+            deleteDeviceOnTimeout = false,
+            deviceId = deviceId
         )
     }
 
@@ -182,6 +188,7 @@ class OfflineCommImpl @Inject constructor(
         grpcPort: Int,
         printLog: Boolean,
         udpPrintLog: Boolean,
+        deviceId: String
     ) {
         require(udpPort in 0..65535) {
             "udpPort must be between 0 and 65535"
@@ -200,7 +207,8 @@ class OfflineCommImpl @Inject constructor(
             broadcastIntervalMs = 10000L,
             deviceTimeoutMs = 11000L,
             deleteDeviceOnTimeout = true,
-            cleanUpTimeoutDelay = 10000L
+            cleanUpTimeoutDelay = 10000L,
+            deviceId = deviceId
         )
     }
 
@@ -320,7 +328,8 @@ class OfflineCommImpl @Inject constructor(
         broadcastIntervalMs: Long,
         deviceTimeoutMs: Long,
         cleanUpTimeoutDelay: Long,
-        deleteDeviceOnTimeout: Boolean
+        deleteDeviceOnTimeout: Boolean,
+        deviceId: String
     ) {
 
         // Start the OfflineSyncService with the provided configurations
@@ -341,6 +350,7 @@ class OfflineCommImpl @Inject constructor(
                     putExtra(Constants.EXTRA_DELETE_ON_TIMEOUT, deleteDeviceOnTimeout)
                     putExtra(Constants.EXTRA_PRINT_LOG, udpPrintLog)
                     putExtra(Constants.EXTRA_CLEANUP_TIME_DELAY, cleanUpTimeoutDelay)
+                    putExtra(Constants.EXTRA_DEVICE_ID, deviceId)
                 }
         )
     }

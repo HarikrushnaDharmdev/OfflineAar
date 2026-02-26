@@ -22,6 +22,7 @@ interface OfflineComm {
         responseTimeout: Long = Constants.RESPONSE_TIMEOUT_MS,
         maxBroadcastDevicesConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
         cleanUpTimeoutDelay: Long = 2500L,
+        deviceId: String
     )
 
     fun startServiceOnCustomModeWithStartDiscovery(
@@ -36,7 +37,8 @@ interface OfflineComm {
         maxBroadcastDevicesConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
         cleanUpTimeoutDelay: Long = 2500L,
         provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
+        events: MutableSharedFlow<GrpcEvent>?,
+        deviceId: String
     )
 
     fun startServiceOnBoosterMode(
@@ -44,6 +46,7 @@ interface OfflineComm {
         grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
         printLog: Boolean = Constants.PRINT_LOG,
         udpPrintLog: Boolean = Constants.PRINT_LOG,
+        deviceId: String
     )
 
     fun startServiceOnEnergySaving(
@@ -51,6 +54,7 @@ interface OfflineComm {
         grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
         printLog: Boolean = Constants.PRINT_LOG,
         udpPrintLog: Boolean = Constants.PRINT_LOG,
+        deviceId: String
     )
 
     fun startDiscovery(

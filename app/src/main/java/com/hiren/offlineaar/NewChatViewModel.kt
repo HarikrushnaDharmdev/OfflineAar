@@ -1,5 +1,6 @@
 package com.hiren.offlineaar
 
+import android.provider.Settings
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -141,7 +142,7 @@ class NewChatViewModel @Inject constructor(
         offlineSdk.changeUdpPort(port)
     }
 
-    fun start() {
+    fun start(deviceId: String) {
         offlineSdk.startServiceOnCustomModeWithStartDiscovery(
             udpPort = 35353,
             grpcPort = 35354,
@@ -151,7 +152,8 @@ class NewChatViewModel @Inject constructor(
             printLog = true,
             udpPrintLog = false,
             events = grpcEvents,
-            provider = responseProvider
+            provider = responseProvider,
+            deviceId = deviceId
         )
     }
 

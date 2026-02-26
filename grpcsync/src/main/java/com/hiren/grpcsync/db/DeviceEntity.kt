@@ -10,5 +10,6 @@ data class DeviceEntity(
     val port: Int, // GRPC Port
     val status: Boolean, // Device online status
     val lastSeen: Long, // Timestamp of the last time the device was seen
+    val deviceId: String, // Unique device ID (could be a UUID or any unique identifier)
     val note: String
 )

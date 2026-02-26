@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,7 +41,8 @@ class DeviceViewModel @Inject constructor(
         port = 0,
         status = false,
         lastSeen = 12451254L,
-        note = ""
+        note = "",
+        deviceId = UUID.randomUUID().toString()
     )
 
     val devices: StateFlow<List<DeviceEntity>> =

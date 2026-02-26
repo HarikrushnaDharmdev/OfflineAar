@@ -1,5 +1,6 @@
 package com.hiren.offlineaar
 
+import android.provider.Settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.utils.Utils
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -207,7 +210,13 @@ fun RightView(viewModel: NewChatViewModel) {
                 AssistChip(
                     modifier = Modifier
                         .height(componentHeight),
-                    onClick = { viewModel.sendMessageToSelectedDevice(sendMessageText) },
+                    onClick = {
+                        viewModel.sendMessageToSelectedDevice(sendMessageText)
+                        scope.launch {
+                            delay(2000)
+                            sendMessageText = ""
+                        }
+                    },
                     label = {
                         Text(
                             "Send",
@@ -226,7 +235,13 @@ fun RightView(viewModel: NewChatViewModel) {
                 AssistChip(
                     modifier = Modifier
                         .height(componentHeight),
-                    onClick = { viewModel.sendMessageWithCallbackToSelectedDevice(sendMessageText) },
+                    onClick = {
+                        viewModel.sendMessageWithCallbackToSelectedDevice(sendMessageText)
+                        scope.launch {
+                            delay(2000)
+                            sendMessageText = ""
+                        }
+                    },
                     label = {
                         Text(
                             "Send With Callback",
@@ -375,6 +390,13 @@ fun LeftView(viewModel: NewChatViewModel) {
 
     val componentHeight = 55.dp
 
+    val androidId = Settings.Secure.getString(
+        LocalContext.current.contentResolver,
+        Settings.Secure.ANDROID_ID
+    )
+
+    val scope = rememberCoroutineScope()
+
     val devices by viewModel.devices.collectAsStateWithLifecycle()
 
     Column(
@@ -397,7 +419,7 @@ fun LeftView(viewModel: NewChatViewModel) {
                     modifier = Modifier
                         .weight(1f)
                         .height(componentHeight),
-                    onClick = { viewModel.start() },
+                    onClick = { viewModel.start(androidId) },
                     label = {
                         Text(
                             "Start",
@@ -568,7 +590,13 @@ fun LeftView(viewModel: NewChatViewModel) {
 
                 AssistChip(
                     modifier = Modifier.height(componentHeight),
-                    onClick = { viewModel.broadcastMessage(broadCastMessage) },
+                    onClick = {
+                        viewModel.broadcastMessage(broadCastMessage)
+                        scope.launch {
+                            delay(2000)
+                            broadCastMessage = ""
+                        }
+                    },
                     label = {
                         Text(
                             "Send",
@@ -638,6 +666,14 @@ fun DeviceRow(device: DeviceEntity, onDevicSelected: (DeviceEntity) -> Unit = {}
                             color = Color(0xFF07498A),
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp
+                        )
+                    )
+                    Text(
+                        device.deviceId,
+                        style = TextStyle(
+                            color = Color.Black.copy(alpha = 0.5f),
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 14.sp
                         )
                     )
                     Text(
