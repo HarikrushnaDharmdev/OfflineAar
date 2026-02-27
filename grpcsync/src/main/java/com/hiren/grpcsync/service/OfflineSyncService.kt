@@ -12,6 +12,8 @@ import com.hiren.grpcsync.grpc.ChannelPool
 import com.hiren.grpcsync.grpc.ChatResponseProvider
 import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.repo.DeviceRepository
+import com.hiren.grpcsync.repo.MessageRepository
+import com.hiren.grpcsync.utils.Constants
 import com.hiren.grpcsync.utils.NotificationHelper.setNotification
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +34,12 @@ class OfflineSyncService : LifecycleService() {
     @Inject
     lateinit var controller: SyncServiceController
 
+    @Inject
+    lateinit var messageRepository: MessageRepository
+
     private val started by lazy { AtomicBoolean(false) }
+
+    private var deviceId: String = ""
 
     val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -69,7 +76,9 @@ class OfflineSyncService : LifecycleService() {
                         grpcManager?.sendMessage(
                             ip = event.ip,
                             port = event.port,
-                            message = event.payload
+                            message = event.payload,
+                            retryIfFail = event.retryIfFail,
+                            messageRepository = messageRepository
                         )
                     }
 
@@ -79,17 +88,22 @@ class OfflineSyncService : LifecycleService() {
                             ip = event.ip,
                             port = event.port,
                             message = event.payload,
-                            callback = event.callback
+                            callback = event.callback,
+                            retryIfFail = event.retryIfFail,
+                            messageRepository = messageRepository
                         )
                     }
 
-                    is ServiceEvent.BroadcastFireAndForget -> {
-                        Log.d("SyncService", "ServiceEvent.BroadcastFireAndForget")
-                        grpcManager?.broadcastFireAndForget(
+                    is ServiceEvent.SendBroadcast -> {
+                        Log.d("SyncService", "ServiceEvent.SendBroadcast")
+                        grpcManager?.sendBroadcast(
+                            deviceId = deviceId,
                             deviceRepository = deviceRepository,
                             targets = event.targets,
                             message = event.message,
-                            maxConcurrency = event.maxConcurrency
+                            maxConcurrency = event.maxConcurrency,
+                            deviceFilter = event.deviceFilter,
+                            messageRepository = messageRepository
                         )
                     }
 
@@ -115,6 +129,8 @@ class OfflineSyncService : LifecycleService() {
         super.onStartCommand(intent, flags, startId)
 
         startForeground(2, setNotification("Retailz Cloud Sync.....", this))
+
+        deviceId = intent?.getStringExtra(Constants.EXTRA_DEVICE_ID) ?: ""
 
         // 🔒 Prevent duplicate start
         if (grpcManager?.serverIsRunning() ?: false) {

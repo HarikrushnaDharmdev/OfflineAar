@@ -4,6 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
+import com.hiren.grpcsync.utils.BroadCastDevice
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -81,4 +83,19 @@ interface DeviceDao {
      */
     @Query("SELECT * FROM DeviceEntity ORDER BY id DESC")
     fun getAllDevice(): List<DeviceEntity>
+
+
+    @Query(
+        """
+        SELECT id, port FROM DeviceEntity
+        WHERE (:onlineOnly = 0 OR status = 1)
+        AND (:includeSelf = 1 OR deviceId != :currentDeviceId)
+        ORDER BY id DESC
+        """
+    )
+    fun getDevicesForBroadcast(
+        currentDeviceId: String,
+        onlineOnly: Boolean,
+        includeSelf: Boolean
+    ): List<DeviceIpPort>
 }

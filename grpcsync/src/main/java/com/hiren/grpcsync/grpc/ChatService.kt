@@ -3,6 +3,7 @@ package com.hiren.grpcsync.grpc
 import com.hiren.grpcsync.ChatRequest
 import com.hiren.grpcsync.ChatResponse
 import com.hiren.grpcsync.ChatServiceGrpc
+import com.hiren.grpcsync.copy
 import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.utils.Constants.RESPONSE_TIMEOUT_MS
 import com.hiren.grpcsync.utils.Utils.eventLog
@@ -87,6 +88,7 @@ internal class ChatService(
                                 messageId = request.messageId,
                                 senderId = request.senderId,
                                 receiverId = request.receiverId,
+                                receiverDeviceId = request.receiverDeviceId,
                                 content = request.content,
                                 timestamp = request.timestamp,
                                 status = request.status,
@@ -102,7 +104,7 @@ internal class ChatService(
                             "sending response to ${request.messageId}"
                         )
 
-                        responseObserver.onNext(response.toGrpcRequest())
+                        responseObserver.onNext(response.toGrpcRequest().copy { received = true })
                     } else {
                         // Timeout occurred
                         eventLog(
@@ -112,7 +114,7 @@ internal class ChatService(
 
                         responseObserver.onNext(
                             ChatResponse.newBuilder()
-                                .setReceived(false)
+                                .setReceived(true)
                                 .setInfo("Response timeout for ${request.messageId}")
                                 .build()
                         )
@@ -121,7 +123,7 @@ internal class ChatService(
                     // Defensive: provider threw unexpectedly
                     responseObserver.onNext(
                         ChatResponse.newBuilder()
-                            .setReceived(false)
+                            .setReceived(true)
                             .setInfo(e.message ?: "Internal error ${request.messageId}")
                             .build()
                     )
@@ -137,7 +139,7 @@ internal class ChatService(
         } else {
             responseObserver.onNext(
                 ChatResponse.newBuilder()
-                    .setReceived(false)
+                    .setReceived(true)
                     .build()
             )
             responseObserver.onCompleted()
@@ -232,6 +234,7 @@ internal class ChatService(
             messageId = request.messageId,
             senderId = request.senderId,
             receiverId = request.receiverId,
+            receiverDeviceId = request.receiverDeviceId,
             content = request.content,
             timestamp = request.timestamp,
             status = request.status,

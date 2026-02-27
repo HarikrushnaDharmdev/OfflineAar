@@ -41,6 +41,8 @@ class NewChatViewModel @Inject constructor(
         extraBufferCapacity = 64
     )
 
+    var deviceId: String = ""
+
     init {
         viewModelScope.launch {
             grpcEvents.collect { event ->
@@ -143,6 +145,7 @@ class NewChatViewModel @Inject constructor(
     }
 
     fun start(deviceId: String) {
+        this.deviceId = deviceId
         offlineSdk.startServiceOnCustomModeWithStartDiscovery(
             udpPort = 35353,
             grpcPort = 35354,
@@ -153,7 +156,7 @@ class NewChatViewModel @Inject constructor(
             udpPrintLog = false,
             events = grpcEvents,
             provider = responseProvider,
-            deviceId = deviceId
+            deviceId = this.deviceId
         )
     }
 
@@ -178,7 +181,8 @@ class NewChatViewModel @Inject constructor(
                 content = broadCastMessage,
                 timestamp = Calendar.getInstance().timeInMillis,
                 status = false,
-                type = "BROADCAST"
+                type = "BROADCAST",
+                receiverDeviceId = this.deviceId
             ),
             maxConcurrency = 10
         )
@@ -193,7 +197,8 @@ class NewChatViewModel @Inject constructor(
             content = messageContent,
             timestamp = Calendar.getInstance().timeInMillis,
             status = false,
-            type = "SINGLE"
+            type = "SINGLE",
+            receiverDeviceId = this.deviceId
         )
         offlineSdk.sendMessage(
             ip = device.id,
@@ -212,7 +217,8 @@ class NewChatViewModel @Inject constructor(
             content = messageContent,
             timestamp = Calendar.getInstance().timeInMillis,
             status = false,
-            type = "SINGLE"
+            type = "SINGLE",
+            receiverDeviceId = this.deviceId
         )
         addToMessageList(message)
 

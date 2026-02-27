@@ -12,6 +12,8 @@ package com.hiren.grpcsync.db
 
 import com.hiren.grpcsync.ChatRequest
 import com.hiren.grpcsync.ChatResponse
+import com.hiren.grpcsync.utils.MessageType
+import java.util.Calendar
 
 /**
  * Represents a chat/message entity exchanged between devices.
@@ -28,6 +30,7 @@ data class Message(
     val messageId: Long = 0,  // Auto-generated primary key
     val senderId: String, // Sender device IP
     val receiverId: String, // Receiver device IP
+    val receiverDeviceId: String, // Receiver device IP
     val content: String, // Actual Message content
     val timestamp: Long, // Time when the message was sent
     val status: Boolean, // e.g., "sent", "delivered", "read"
@@ -44,11 +47,32 @@ data class Message(
             .setMessageId(messageId)
             .setSenderId(senderId)
             .setReceiverId(receiverId)
+            .setReceiverDeviceId(receiverDeviceId)
             .setContent(content)
             .setTimestamp(timestamp)
             .setStatus(status)
             .setType(type)
             .build()
+    }
+
+    fun toMessageEntity(
+        lastSyncTime: Long = Calendar.getInstance().timeInMillis,
+        reason: String = "-",
+        retryCount: Int = 0,
+        messageType: MessageType
+    ): MessagesEntity {
+        return MessagesEntity(
+            id = 0,
+            receiverDeviceId = receiverDeviceId,
+            messageId = messageId,
+            content = content,
+            timestamp = timestamp,
+            type = type,
+            retryCount = retryCount,
+            lastSyncTime = lastSyncTime,
+            reason = reason,
+            messageType = messageType
+        )
     }
 }
 

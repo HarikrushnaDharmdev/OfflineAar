@@ -1,6 +1,8 @@
 package com.hiren.grpcsync.grpc
 
+import com.hiren.grpcsync.db.DeviceIpPort
 import com.hiren.grpcsync.db.Message
+import com.hiren.grpcsync.utils.BroadCastDevice
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -18,10 +20,6 @@ internal object ServiceBus {
     }
 }
 
-interface ServiceStartCallback {
-    fun onServiceStarted()
-}
-
 internal sealed class ServiceEvent {
 
     data class StartDiscovery(
@@ -34,19 +32,22 @@ internal sealed class ServiceEvent {
 
     object Stop : ServiceEvent()
 
-    data class Send(val ip: String, val port: Int, val payload: Message) : ServiceEvent()
+    data class Send(val ip: String, val port: Int, val payload: Message, val retryIfFail: Boolean) :
+        ServiceEvent()
 
     data class SendWithCallback(
         val ip: String,
         val port: Int,
         val payload: Message,
-        val callback: (GrpcResult) -> Unit
+        val callback: (GrpcResult) -> Unit,
+        val retryIfFail: Boolean
     ) : ServiceEvent()
 
-    data class BroadcastFireAndForget(
-        val targets: List<Pair<String, Int>>?,
+    data class SendBroadcast(
+        val targets: List<DeviceIpPort>?,
         val message: Message,
-        val maxConcurrency: Int
+        val maxConcurrency: Int,
+        val deviceFilter: BroadCastDevice
     ) : ServiceEvent()
 
     data class StartStream(val ip: String, val port: Int) : ServiceEvent()

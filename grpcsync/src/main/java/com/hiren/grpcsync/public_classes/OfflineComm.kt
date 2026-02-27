@@ -1,10 +1,12 @@
 package com.hiren.grpcsync.public_classes
 
 import com.hiren.grpcsync.db.DeviceEntity
+import com.hiren.grpcsync.db.DeviceIpPort
 import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.grpc.ChatResponseProvider
 import com.hiren.grpcsync.grpc.GrpcEvent
 import com.hiren.grpcsync.grpc.GrpcResult
+import com.hiren.grpcsync.utils.BroadCastDevice
 import com.hiren.grpcsync.utils.Constants
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -67,22 +69,25 @@ interface OfflineComm {
 
     fun stopDiscovery()
 
-    fun sendMessage(ip: String, port: Int, payload: Message)
+    fun sendMessage(ip: String, port: Int, payload: Message, retryIfFail: Boolean = true)
 
     fun sendMessageWithCallback(
         ip: String,
         port: Int,
         payload: Message,
+        retryIfFail: Boolean = true,
         callback: (GrpcResult) -> Unit
     )
 
     fun sendMessageBroadcast(
-        targets: List<Pair<String, Int>>? = null,
+        targets: List<DeviceIpPort>? = null,
         message: Message,
-        maxConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY
+        maxConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
+        deviceFilter: BroadCastDevice = BroadCastDevice.ALL(includeSelf = false)
     )
 
     fun getDevices(): Flow<List<DeviceEntity>>
+
     fun changeUdpPort(port: Int)
 
     fun changeGrpcPort(port: Int)

@@ -270,7 +270,8 @@ class MainActivity : ComponentActivity() {
                                         content = broadCastMessage,
                                         timestamp = Calendar.getInstance().timeInMillis,
                                         status = false,
-                                        type = "BROADCAST"
+                                        type = "BROADCAST",
+                                        receiverDeviceId = "Broadcast"
                                     ),
                                     maxConcurrency = 10
                                 )
@@ -534,7 +535,8 @@ class MainActivity : ComponentActivity() {
             content = inputText,
             timestamp = Calendar.getInstance().timeInMillis,
             status = false,
-            type = "SINGLE"
+            type = "SINGLE",
+            receiverDeviceId = deviceEntity.id
         )
         viewModel.addMessage("Sent Single message to ${deviceEntity.id}: $inputText")
         offlineComm.sendMessageWithCallback(

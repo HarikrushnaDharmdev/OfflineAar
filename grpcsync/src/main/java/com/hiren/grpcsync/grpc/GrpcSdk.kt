@@ -1,12 +1,14 @@
 package com.hiren.grpcsync.grpc
 
+import com.hiren.grpcsync.db.DeviceIpPort
 import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.repo.DeviceRepository
+import com.hiren.grpcsync.repo.MessageRepository
+import com.hiren.grpcsync.utils.BroadCastDevice
 import kotlinx.coroutines.flow.MutableSharedFlow
 
 internal interface GrpcSdk {
 
-    /* Server lifecycle */
     fun startServer(
         startPort: Int,
         provider: ChatResponseProvider?,
@@ -15,36 +17,38 @@ internal interface GrpcSdk {
 
     fun stopServer()
 
-    /* 1. Normal send */
     fun sendMessage(
         ip: String,
         port: Int,
-        message: Message
+        message: Message,
+        retryIfFail: Boolean,
+        messageRepository: MessageRepository,
     )
 
-    /* 2. Send with callback */
     fun sendMessageWithCallback(
         ip: String,
         port: Int,
         message: Message,
-        callback: (GrpcResult) -> Unit
+        callback: (GrpcResult) -> Unit,
+        retryIfFail: Boolean,
+        messageRepository: MessageRepository,
     )
 
-    /* 3. Broadcast */
-    fun broadcastFireAndForget(
+    fun sendBroadcast(
         deviceRepository: DeviceRepository,
-        targets: List<Pair<String, Int>>? = null,
+        targets: List<DeviceIpPort>?,
+        deviceId: String,
         message: Message,
-        maxConcurrency: Int
+        maxConcurrency: Int,
+        deviceFilter: BroadCastDevice,
+        messageRepository: MessageRepository,
     )
 
-    /* 4. Stream */
     fun openStream(
         ip: String,
         port: Int,
     ): ChatStreamSession
 
-    /* Cleanup */
     fun shutdown()
 
     fun restartServer(port: Int)

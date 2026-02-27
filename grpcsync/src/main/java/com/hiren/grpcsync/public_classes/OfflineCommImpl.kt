@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.hiren.grpcsync.db.DeviceEntity
+import com.hiren.grpcsync.db.DeviceIpPort
 import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.grpc.ChatResponseProvider
 import com.hiren.grpcsync.grpc.GrpcEvent
@@ -14,6 +15,7 @@ import com.hiren.grpcsync.repo.DeviceRepository
 import com.hiren.grpcsync.service.OfflineSyncService
 import com.hiren.grpcsync.service.SyncServiceController
 import com.hiren.grpcsync.service.UDPDiscoveryService
+import com.hiren.grpcsync.utils.BroadCastDevice
 import com.hiren.grpcsync.utils.Constants
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -235,8 +237,15 @@ class OfflineCommImpl @Inject constructor(
     /**
      * Sends a message to a specific device without callback.
      */
-    override fun sendMessage(ip: String, port: Int, payload: Message) {
-        ServiceBus.post(ServiceEvent.Send(ip = ip, port = port, payload = payload))
+    override fun sendMessage(ip: String, port: Int, payload: Message, retryIfFail: Boolean) {
+        ServiceBus.post(
+            ServiceEvent.Send(
+                ip = ip,
+                port = port,
+                payload = payload,
+                retryIfFail = retryIfFail
+            )
+        )
     }
 
     /**
@@ -247,6 +256,7 @@ class OfflineCommImpl @Inject constructor(
         ip: String,
         port: Int,
         payload: Message,
+        retryIfFail: Boolean,
         callback: (GrpcResult) -> Unit
     ) {
         ServiceBus.post(
@@ -254,6 +264,7 @@ class OfflineCommImpl @Inject constructor(
                 ip = ip,
                 payload = payload,
                 port = port,
+                retryIfFail = retryIfFail,
                 callback = callback
             )
         )
@@ -267,15 +278,17 @@ class OfflineCommImpl @Inject constructor(
      * @param maxConcurrency Limits parallel sending.
      */
     override fun sendMessageBroadcast(
-        targets: List<Pair<String, Int>>?,
+        targets: List<DeviceIpPort>?,
         message: Message,
-        maxConcurrency: Int
+        maxConcurrency: Int,
+        deviceFilter: BroadCastDevice
     ) {
         ServiceBus.post(
-            ServiceEvent.BroadcastFireAndForget(
+            ServiceEvent.SendBroadcast(
                 targets = targets,
                 message = message,
-                maxConcurrency = maxConcurrency
+                maxConcurrency = maxConcurrency,
+                deviceFilter = deviceFilter
             )
         )
     }
@@ -335,7 +348,10 @@ class OfflineCommImpl @Inject constructor(
         // Start the OfflineSyncService with the provided configurations
         startService(
             Intent(context, OfflineSyncService::class.java)
-                .apply { putExtra(Constants.EXTRA_GRPC_PORT, grpcPort) }
+                .apply {
+                    putExtra(Constants.EXTRA_GRPC_PORT, grpcPort)
+                    putExtra(Constants.EXTRA_DEVICE_ID, deviceId)
+                }
         )
 
         // Start UDP Discovery Service with the provided configurations
