@@ -142,7 +142,7 @@ class MainActivity : ComponentActivity() {
                     Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
                         Button(
                             onClick = {
-                                startDiscoveryService()
+                                //startDiscoveryService()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                         ) {
@@ -152,7 +152,7 @@ class MainActivity : ComponentActivity() {
 
                         Button(
                             onClick = {
-                                stopSyncService()
+                                //stopSyncService()
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63))
                         ) {
@@ -320,8 +320,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun startSyncService() {
-        offlineComm.startServiceOnCustomMode(
+   /* private fun startSyncService() {
+        offlineComm.startMessageServiceWithDiscovery(
             udpPort = 35353,
             grpcPort = 35354,
             broadcastIntervalMs = 2000L,
@@ -330,9 +330,9 @@ class MainActivity : ComponentActivity() {
             printLog = true,
             deviceId = ""
         )
-    }
+    }*/
 
-    private fun startDiscoveryService() {
+    /*private fun startDiscoveryService() {
         offlineComm.startDiscovery(
             grpcPort = 35354,
             events = grpcEvents,
@@ -369,7 +369,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
+    }*/
 
     private val responseProvider = object : ChatResponseProvider {
         override suspend fun onMessageReceived(request: Message): MessageResponse {
@@ -384,9 +384,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun stopSyncService() {
+    /*private fun stopSyncService() {
         offlineComm.stopService()
-    }
+    }*/
 
     @Composable
     fun ChatView(deviceEntity: DeviceEntity, messages: List<String>) {

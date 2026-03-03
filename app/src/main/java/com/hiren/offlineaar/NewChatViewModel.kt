@@ -1,10 +1,8 @@
 package com.hiren.offlineaar
 
-import android.provider.Settings
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hiren.grpcsync.ChatRequest
 import com.hiren.grpcsync.db.DeviceEntity
 import com.hiren.grpcsync.db.Message
 import com.hiren.grpcsync.db.MessageResponse
@@ -146,22 +144,28 @@ class NewChatViewModel @Inject constructor(
 
     fun start(deviceId: String) {
         this.deviceId = deviceId
-        offlineSdk.startServiceOnCustomModeWithStartDiscovery(
+        offlineSdk.startMessageServiceWithDiscovery(
+            grpcPort = 35354,
+            printLog = true,
+            events = grpcEvents,
+            provider = responseProvider,
+            deviceId = this.deviceId
+        )
+
+        offlineSdk.startDeviceDiscovery(
             udpPort = 35353,
             grpcPort = 35354,
             broadcastIntervalMs = 2000L,
             deviceTimeoutMs = 5000L,
             deleteDeviceOnTimeout = false,
-            printLog = true,
-            udpPrintLog = false,
-            events = grpcEvents,
-            provider = responseProvider,
+            printLog = false,
             deviceId = this.deviceId
         )
     }
 
     fun stop() {
-        offlineSdk.stopService()
+        offlineSdk.stopDeviceServer()
+        offlineSdk.stopMessageServer()
     }
 
     fun deleteAllDevices() {

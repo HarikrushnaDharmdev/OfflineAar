@@ -13,61 +13,36 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 
 interface OfflineComm {
 
-    fun startServiceOnCustomMode(
-        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+    /*--------------------------------------------------------------
+    *                          GRPC Messaging
+    * -------------------------------------------------------------- */
+
+    fun startMessageService(
         grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
-        broadcastIntervalMs: Long = Constants.DEFAULT_BROADCAST_INTERVAL,
-        deviceTimeoutMs: Long = Constants.DEFAULT_DEVICE_TIMEOUT,
-        deleteDeviceOnTimeout: Boolean = false,
         printLog: Boolean = Constants.PRINT_LOG,
-        udpPrintLog: Boolean = Constants.PRINT_LOG,
         responseTimeout: Long = Constants.RESPONSE_TIMEOUT_MS,
         maxBroadcastDevicesConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
-        cleanUpTimeoutDelay: Long = 2500L,
         deviceId: String
     )
 
-    fun startServiceOnCustomModeWithStartDiscovery(
-        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+    fun startMessageServiceWithDiscovery(
         grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
-        broadcastIntervalMs: Long = Constants.DEFAULT_BROADCAST_INTERVAL,
-        deviceTimeoutMs: Long = Constants.DEFAULT_DEVICE_TIMEOUT,
-        deleteDeviceOnTimeout: Boolean = false,
         printLog: Boolean = Constants.PRINT_LOG,
-        udpPrintLog: Boolean = Constants.PRINT_LOG,
         responseTimeout: Long = Constants.RESPONSE_TIMEOUT_MS,
         maxBroadcastDevicesConcurrency: Int = Constants.MAX_BROADCAST_DEVICES_CONCURRENCY,
-        cleanUpTimeoutDelay: Long = 2500L,
         provider: ChatResponseProvider?,
         events: MutableSharedFlow<GrpcEvent>?,
         deviceId: String
     )
 
-    fun startServiceOnBoosterMode(
-        udpPort: Int = Constants.DEFAULT_UDP_PORT,
-        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
-        printLog: Boolean = Constants.PRINT_LOG,
-        udpPrintLog: Boolean = Constants.PRINT_LOG,
-        deviceId: String
-    )
-
-    fun startServiceOnEnergySaving(
-        udpPort: Int = Constants.DEFAULT_UDP_PORT,
-        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
-        printLog: Boolean = Constants.PRINT_LOG,
-        udpPrintLog: Boolean = Constants.PRINT_LOG,
-        deviceId: String
-    )
-
-    fun startDiscovery(
+    fun startMessageDiscovery(
         grpcPort: Int,
         provider: ChatResponseProvider?,
         events: MutableSharedFlow<GrpcEvent>?
     )
 
-    fun stopService()
-
-    fun stopDiscovery()
+    fun stopMessageDiscovery()
+    fun stopMessageServer()
 
     fun sendMessage(ip: String, port: Int, payload: Message, retryIfFail: Boolean = true)
 
@@ -86,10 +61,44 @@ interface OfflineComm {
         deviceFilter: BroadCastDevice = BroadCastDevice.ALL(includeSelf = false)
     )
 
+    fun changeGrpcPort(port: Int)
+
+
+    /*--------------------------------------------------------------
+    *                      UDP Device Discovery
+    * -------------------------------------------------------------- */
+
+    fun startDeviceDiscovery(
+        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
+        broadcastIntervalMs: Long = Constants.DEFAULT_BROADCAST_INTERVAL,
+        deviceTimeoutMs: Long = Constants.DEFAULT_DEVICE_TIMEOUT,
+        deleteDeviceOnTimeout: Boolean = false,
+        printLog: Boolean = Constants.PRINT_LOG,
+        responseTimeout: Long = Constants.RESPONSE_TIMEOUT_MS,
+        cleanUpTimeoutDelay: Long = 2500L,
+        deviceId: String
+    )
+
+    fun startDeviceDiscoveryOnBoosterMode(
+        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
+        udpPrintLog: Boolean = Constants.PRINT_LOG,
+        deviceId: String
+    )
+
+    fun startDeviceDiscoveryOnEnergySaving(
+        udpPort: Int = Constants.DEFAULT_UDP_PORT,
+        grpcPort: Int = Constants.DEFAULT_GRPC_PORT,
+        udpPrintLog: Boolean = Constants.PRINT_LOG,
+        deviceId: String
+    )
+
+    fun stopDeviceDiscovery()
+    fun stopDeviceServer()
+
     fun getDevices(): Flow<List<DeviceEntity>>
 
     fun changeUdpPort(port: Int)
-
-    fun changeGrpcPort(port: Int)
 
 }

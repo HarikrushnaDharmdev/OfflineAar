@@ -34,6 +34,6 @@ internal object Constants {
     // --------------Editable Constants--------------
     var PRINT_LOG = false
     var RESPONSE_TIMEOUT_MS = 3_000L // example: 3 seconds
-    var MAX_BROADCAST_DEVICES_CONCURRENCY = 15
+    var MAX_BROADCAST_DEVICES_CONCURRENCY = 15 // example: limit to 15 concurrent device processing
 
 }

@@ -49,189 +49,95 @@ class OfflineCommImpl @Inject constructor(
 ) : OfflineComm {
 
     /**
-     * Starts services in fully customizable mode.
+     * Helper method to start service safely.
      *
-     * Allows complete control over:
-     * - UDP port
-     * - gRPC port
-     * - Broadcast interval
-     * - Device timeout duration
-     * - Concurrency level
-     * - Response timeout
-     * - Cleanup delay
+     * Uses startForegroundService() for Android O+,
+     * otherwise falls back to startService().
      */
-    override fun startServiceOnCustomMode(
-        udpPort: Int,
+    fun startService(intent: Intent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+    }
+
+    override fun startMessageService(
         grpcPort: Int,
-        broadcastIntervalMs: Long,
-        deviceTimeoutMs: Long,
-        deleteDeviceOnTimeout: Boolean,
         printLog: Boolean,
-        udpPrintLog: Boolean,
         responseTimeout: Long,
         maxBroadcastDevicesConcurrency: Int,
-        cleanUpTimeoutDelay: Long,
         deviceId: String
     ) {
-        require(udpPort in 0..65535) {
-            "udpPort must be between 0 and 65535"
-        }
-
         require(grpcPort in 0..65535) {
             "grpcPort must be between 0 and 65535"
         }
 
         // Apply runtime configuration
+        Constants.PRINT_LOG = printLog
         Constants.RESPONSE_TIMEOUT_MS = responseTimeout
         Constants.MAX_BROADCAST_DEVICES_CONCURRENCY = maxBroadcastDevicesConcurrency
-        Constants.PRINT_LOG = printLog
 
-        startSyncService(
-            udpPort = udpPort,
+        startMessageSyncService(
             grpcPort = grpcPort,
-            udpPrintLog = udpPrintLog,
-            broadcastIntervalMs = broadcastIntervalMs,
-            deviceTimeoutMs = deviceTimeoutMs,
-            cleanUpTimeoutDelay = cleanUpTimeoutDelay,
-            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
             deviceId = deviceId
         )
     }
 
-    override fun startServiceOnCustomModeWithStartDiscovery(
-        udpPort: Int,
+    override fun startMessageServiceWithDiscovery(
         grpcPort: Int,
-        broadcastIntervalMs: Long,
-        deviceTimeoutMs: Long,
-        deleteDeviceOnTimeout: Boolean,
         printLog: Boolean,
-        udpPrintLog: Boolean,
         responseTimeout: Long,
         maxBroadcastDevicesConcurrency: Int,
-        cleanUpTimeoutDelay: Long,
         provider: ChatResponseProvider?,
         events: MutableSharedFlow<GrpcEvent>?,
         deviceId: String
     ) {
-        require(udpPort in 0..65535) {
-            "udpPort must be between 0 and 65535"
-        }
-
         require(grpcPort in 0..65535) {
             "grpcPort must be between 0 and 65535"
         }
 
         // Apply runtime configuration
+        Constants.PRINT_LOG = printLog
         Constants.RESPONSE_TIMEOUT_MS = responseTimeout
         Constants.MAX_BROADCAST_DEVICES_CONCURRENCY = maxBroadcastDevicesConcurrency
-        Constants.PRINT_LOG = printLog
 
         controller.setOnStarted { _ ->
-            startDiscovery(grpcPort = grpcPort, provider = provider, events = events)
+            startMessageDiscovery(grpcPort = grpcPort, provider = provider, events = events)
         }
 
-        startSyncService(
-            udpPort = udpPort,
+        startMessageSyncService(
             grpcPort = grpcPort,
-            udpPrintLog = udpPrintLog,
-            broadcastIntervalMs = broadcastIntervalMs,
-            deviceTimeoutMs = deviceTimeoutMs,
-            cleanUpTimeoutDelay = cleanUpTimeoutDelay,
-            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
             deviceId = deviceId
         )
     }
 
-    /**
-     * Starts services in high-performance (Booster) mode.
-     *
-     * - Faster broadcast interval
-     * - Shorter timeout
-     * - Higher device responsiveness
-     */
-    override fun startServiceOnBoosterMode(
-        udpPort: Int,
+    override fun startMessageDiscovery(
         grpcPort: Int,
-        printLog: Boolean,
-        udpPrintLog: Boolean,
-        deviceId: String
+        provider: ChatResponseProvider?,
+        events: MutableSharedFlow<GrpcEvent>?
     ) {
-        require(udpPort in 0..65535) {
-            "udpPort must be between 0 and 65535"
-        }
-
-        require(grpcPort in 0..65535) {
-            "grpcPort must be between 0 and 65535"
-        }
-
-        Constants.PRINT_LOG = printLog
-
-        startSyncService(
-            udpPort = udpPort,
-            grpcPort = grpcPort,
-            udpPrintLog = udpPrintLog,
-            broadcastIntervalMs = 2000L,
-            deviceTimeoutMs = 5000L,
-            cleanUpTimeoutDelay = 2000L,
-            deleteDeviceOnTimeout = false,
-            deviceId = deviceId
+        ServiceBus.post(
+            ServiceEvent.StartDiscovery(
+                grpcPort = grpcPort,
+                provider = provider,
+                events = events
+            )
         )
     }
 
     /**
-     * Starts services in energy-saving mode.
-     *
-     * - Slower broadcast interval
-     * - Longer timeout window
-     * - Deletes devices on timeout
+     * Dynamically changes gRPC port at runtime.
+     * Also notifies internal ServiceBus.
      */
-    override fun startServiceOnEnergySaving(
-        udpPort: Int,
-        grpcPort: Int,
-        printLog: Boolean,
-        udpPrintLog: Boolean,
-        deviceId: String
-    ) {
-        require(udpPort in 0..65535) {
-            "udpPort must be between 0 and 65535"
-        }
-
-        require(grpcPort in 0..65535) {
-            "grpcPort must be between 0 and 65535"
-        }
-
-        Constants.PRINT_LOG = printLog
-
-        startSyncService(
-            udpPort = udpPort,
-            grpcPort = grpcPort,
-            udpPrintLog = udpPrintLog,
-            broadcastIntervalMs = 10000L,
-            deviceTimeoutMs = 11000L,
-            deleteDeviceOnTimeout = true,
-            cleanUpTimeoutDelay = 10000L,
-            deviceId = deviceId
-        )
-    }
-
-    /**
-     * Stops UDP discovery service.
-     * Sends a STOP command via intent and notifies ServiceBus.
-     */
-    override fun stopService() {
+    override fun changeGrpcPort(port: Int) {
         startService(
-            Intent(context, UDPDiscoveryService::class.java)
-                .apply { putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_STOP) }
+            Intent(context, UDPDiscoveryService::class.java).apply {
+                putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_CHANGE_GRPC_PORT)
+                putExtra(Constants.EXTRA_GRPC_PORT, port)
+            }
         )
-        ServiceBus.post(ServiceEvent.Stop)
-    }
-
-    override fun stopDiscovery() {
-        startService(
-            Intent(context, UDPDiscoveryService::class.java)
-                .apply { putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_STOP_DISCOVERY) }
-        )
-        ServiceBus.post(ServiceEvent.StopDiscovery)
+        ServiceBus.post(ServiceEvent.ChangeGrpcPort(port))
     }
 
     /**
@@ -293,6 +199,136 @@ class OfflineCommImpl @Inject constructor(
         )
     }
 
+    override fun stopMessageDiscovery() {
+        ServiceBus.post(ServiceEvent.StopDiscovery)
+    }
+
+    override fun stopMessageServer() {
+        ServiceBus.post(ServiceEvent.Stop)
+    }
+
+    private fun startMessageSyncService(grpcPort: Int, deviceId: String) {
+        startService(
+            Intent(context, OfflineSyncService::class.java)
+                .apply {
+                    putExtra(Constants.EXTRA_GRPC_PORT, grpcPort)
+                    putExtra(Constants.EXTRA_DEVICE_ID, deviceId)
+                }
+        )
+    }
+
+
+    override fun startDeviceDiscovery(
+        udpPort: Int,
+        grpcPort: Int,
+        broadcastIntervalMs: Long,
+        deviceTimeoutMs: Long,
+        deleteDeviceOnTimeout: Boolean,
+        printLog: Boolean,
+        responseTimeout: Long,
+        cleanUpTimeoutDelay: Long,
+        deviceId: String
+    ) {
+        require(udpPort in 0..65535) {
+            "udpPort must be between 0 and 65535"
+        }
+        startDeviceSyncService(
+            udpPort = udpPort,
+            grpcPort = grpcPort,
+            printLog = printLog,
+            broadcastIntervalMs = broadcastIntervalMs,
+            deviceTimeoutMs = deviceTimeoutMs,
+            cleanUpTimeoutDelay = cleanUpTimeoutDelay,
+            deleteDeviceOnTimeout = deleteDeviceOnTimeout,
+            deviceId = deviceId
+        )
+    }
+
+    override fun startDeviceDiscoveryOnBoosterMode(
+        udpPort: Int,
+        grpcPort: Int,
+        udpPrintLog: Boolean,
+        deviceId: String
+    ) {
+        require(udpPort in 0..65535) {
+            "udpPort must be between 0 and 65535"
+        }
+
+        startDeviceSyncService(
+            udpPort = udpPort,
+            grpcPort = grpcPort,
+            printLog = udpPrintLog,
+            broadcastIntervalMs = 2000L,
+            deviceTimeoutMs = 5000L,
+            cleanUpTimeoutDelay = 2000L,
+            deleteDeviceOnTimeout = false,
+            deviceId = deviceId
+        )
+    }
+
+    override fun startDeviceDiscoveryOnEnergySaving(
+        udpPort: Int,
+        grpcPort: Int,
+        udpPrintLog: Boolean,
+        deviceId: String
+    ) {
+        require(udpPort in 0..65535) {
+            "udpPort must be between 0 and 65535"
+        }
+
+        startDeviceSyncService(
+            udpPort = udpPort,
+            grpcPort = grpcPort,
+            printLog = udpPrintLog,
+            broadcastIntervalMs = 10000L,
+            deviceTimeoutMs = 11000L,
+            deleteDeviceOnTimeout = true,
+            cleanUpTimeoutDelay = 10000L,
+            deviceId = deviceId
+        )
+    }
+
+    override fun stopDeviceDiscovery() {
+        startService(
+            Intent(context, UDPDiscoveryService::class.java)
+                .apply { putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_STOP_DISCOVERY) }
+        )
+    }
+
+    override fun stopDeviceServer() {
+        startService(
+            Intent(context, UDPDiscoveryService::class.java)
+                .apply { putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_STOP) }
+        )
+    }
+
+    fun startDeviceSyncService(
+        udpPort: Int,
+        grpcPort: Int,
+        printLog: Boolean,
+        broadcastIntervalMs: Long,
+        deviceTimeoutMs: Long,
+        cleanUpTimeoutDelay: Long,
+        deleteDeviceOnTimeout: Boolean,
+        deviceId: String
+    ) {
+        // Start UDP Discovery Service with the provided configurations
+        startService(
+            Intent(context, UDPDiscoveryService::class.java)
+                .apply {
+                    putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_START)
+                    putExtra(Constants.EXTRA_UDP_PORT, udpPort)
+                    putExtra(Constants.EXTRA_GRPC_PORT, grpcPort)
+                    putExtra(Constants.EXTRA_BROADCAST_INTERVAL, broadcastIntervalMs)
+                    putExtra(Constants.EXTRA_DEVICE_TIMEOUT, deviceTimeoutMs)
+                    putExtra(Constants.EXTRA_DELETE_ON_TIMEOUT, deleteDeviceOnTimeout)
+                    putExtra(Constants.EXTRA_PRINT_LOG, printLog)
+                    putExtra(Constants.EXTRA_CLEANUP_TIME_DELAY, cleanUpTimeoutDelay)
+                    putExtra(Constants.EXTRA_DEVICE_ID, deviceId)
+                }
+        )
+    }
+
     /**
      * Observes devices from local database as Flow.
      * UI layer can collect this to get real-time updates.
@@ -313,96 +349,4 @@ class OfflineCommImpl @Inject constructor(
         )
     }
 
-    /**
-     * Dynamically changes gRPC port at runtime.
-     * Also notifies internal ServiceBus.
-     */
-    override fun changeGrpcPort(port: Int) {
-        startService(
-            Intent(context, UDPDiscoveryService::class.java).apply {
-                putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_CHANGE_GRPC_PORT)
-                putExtra(Constants.EXTRA_GRPC_PORT, port)
-            }
-        )
-        ServiceBus.post(ServiceEvent.ChangeGrpcPort(port))
-    }
-
-    /**
-     * Starts both:
-     * - OfflineSyncService (gRPC server)
-     * - UDPDiscoveryService (device discovery)
-     *
-     * Prevents duplicate starts using AtomicBoolean flags.
-     */
-    fun startSyncService(
-        udpPort: Int,
-        grpcPort: Int,
-        udpPrintLog: Boolean,
-        broadcastIntervalMs: Long,
-        deviceTimeoutMs: Long,
-        cleanUpTimeoutDelay: Long,
-        deleteDeviceOnTimeout: Boolean,
-        deviceId: String
-    ) {
-
-        // Start the OfflineSyncService with the provided configurations
-        startService(
-            Intent(context, OfflineSyncService::class.java)
-                .apply {
-                    putExtra(Constants.EXTRA_GRPC_PORT, grpcPort)
-                    putExtra(Constants.EXTRA_DEVICE_ID, deviceId)
-                }
-        )
-
-        // Start UDP Discovery Service with the provided configurations
-        startService(
-            Intent(context, UDPDiscoveryService::class.java)
-                .apply {
-                    putExtra(Constants.EXTRA_UDP_TYPE, Constants.UDP_START)
-                    putExtra(Constants.EXTRA_UDP_PORT, udpPort)
-                    putExtra(Constants.EXTRA_GRPC_PORT, grpcPort)
-                    putExtra(Constants.EXTRA_BROADCAST_INTERVAL, broadcastIntervalMs)
-                    putExtra(Constants.EXTRA_DEVICE_TIMEOUT, deviceTimeoutMs)
-                    putExtra(Constants.EXTRA_DELETE_ON_TIMEOUT, deleteDeviceOnTimeout)
-                    putExtra(Constants.EXTRA_PRINT_LOG, udpPrintLog)
-                    putExtra(Constants.EXTRA_CLEANUP_TIME_DELAY, cleanUpTimeoutDelay)
-                    putExtra(Constants.EXTRA_DEVICE_ID, deviceId)
-                }
-        )
-    }
-
-    /**
-     * Starts discovery flow.
-     *
-     * @param grpcPort gRPC server port
-     * @param provider Optional response provider
-     * @param events Optional shared flow for event streaming
-     */
-    override fun startDiscovery(
-        grpcPort: Int,
-        provider: ChatResponseProvider?,
-        events: MutableSharedFlow<GrpcEvent>?
-    ) {
-        ServiceBus.post(
-            ServiceEvent.StartDiscovery(
-                grpcPort = grpcPort,
-                provider = provider,
-                events = events
-            )
-        )
-    }
-
-    /**
-     * Helper method to start service safely.
-     *
-     * Uses startForegroundService() for Android O+,
-     * otherwise falls back to startService().
-     */
-    fun startService(intent: Intent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
-    }
 }
