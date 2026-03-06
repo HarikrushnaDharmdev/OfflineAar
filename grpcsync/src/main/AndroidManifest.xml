@@ -25,8 +25,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.OfflineAar">
+        android:supportsRtl="true">
 
         <service
             android:name=".service.OfflineSyncService"
@@ -34,15 +33,12 @@
             android:exported="true"
             android:foregroundServiceType="dataSync|connectedDevice" />
 
-        <!---->
         <service
             android:name=".service.UDPDiscoveryService"
             android:enabled="true"
             android:exported="true"
-            android:process=":DEVICE_SYNC_SERVICE"
             android:foregroundServiceType="dataSync|connectedDevice"
-            />
+            android:process=":DEVICE_SYNC_SERVICE" />
 
     </application>
-
 </manifest>
